@@ -18,7 +18,7 @@ function connWith(sobjects) {
 }
 
 test('search — finds matching objects by API name', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'Account');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'Account' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('Account'));
   assert.ok(result.content[0].text.includes('AccountHistory'));
@@ -26,19 +26,19 @@ test('search — finds matching objects by API name', async () => {
 });
 
 test('search — no matches', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'zzzznotfound');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'zzzznotfound' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('No Salesforce objects found'));
 });
 
 test('search — case insensitive', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'account');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'account' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('Account'));
 });
 
 test('search — multi-word search matches all terms', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'Account Coverage');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'Account Coverage' });
   assert.equal(result.isError, false);
   // Only AccountCoverage__c has both terms
   assert.ok(result.content[0].text.includes('AccountCoverage__c'));
@@ -46,13 +46,13 @@ test('search — multi-word search matches all terms', async () => {
 });
 
 test('search — custom objects marked with (Custom)', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'CustomObj');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'CustomObj' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('(Custom)'));
 });
 
 test('search — matches on label too', async () => {
-  const result = await handleSearchObjects(connWith(mockObjects), 'Custom Object');
+  const result = await handleSearchObjects(connWith(mockObjects), { searchPattern: 'Custom Object' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('CustomObj__c'));
 });
