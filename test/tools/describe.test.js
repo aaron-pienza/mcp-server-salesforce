@@ -28,16 +28,15 @@ test('describe — returns formatted object metadata', async () => {
   assert.ok(text.includes('Industry'));
 });
 
-test('describe — object not found throws (handler has no try/catch)', async () => {
+test('describe — object not found returns isError', async () => {
   const conn = createMockConnection({
     describe: async () => {
       throw new Error("The requested resource does not exist: FakeObject__c");
     },
   });
-  await assert.rejects(
-    () => handleDescribeObject(conn, 'FakeObject__c'),
-    /FakeObject__c/
-  );
+  const result = await handleDescribeObject(conn, 'FakeObject__c');
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('FakeObject__c'));
 });
 
 test('describe — formats fields with type and required info', async () => {

@@ -22,7 +22,7 @@ test('executeAnonymous — success', async () => {
     query: async () => ({ totalSize: 0, records: [] }),
   });
   const result = await handleExecuteAnonymous(conn, { apexCode: 'System.debug("test");' });
-  assert.ok(!result.isError); // handler returns undefined, not false, on success
+  assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('Success'));
 });
 
@@ -45,7 +45,7 @@ test('executeAnonymous — compilation failure', async () => {
     query: async () => ({ totalSize: 0, records: [] }),
   });
   const result = await handleExecuteAnonymous(conn, { apexCode: 'bad code' });
-  // Handler doesn't set isError for compilation failures — it's in the text
+  assert.equal(result.isError, true);
   assert.ok(result.content[0].text.includes('Failed'));
   assert.ok(result.content[0].text.includes('Unexpected token'));
 });
@@ -69,7 +69,7 @@ test('executeAnonymous — execution exception', async () => {
     query: async () => ({ totalSize: 0, records: [] }),
   });
   const result = await handleExecuteAnonymous(conn, { apexCode: 'String s; s.length();' });
-  // Handler doesn't set isError for runtime exceptions — it's in the text
+  assert.equal(result.isError, true);
   assert.ok(result.content[0].text.includes('NullPointerException'));
 });
 

@@ -79,7 +79,7 @@ test('dml — insert with partial failure reports errors', async () => {
   assert.ok(text.includes('REQUIRED_FIELD_MISSING'));
 });
 
-test('dml — API error throws (handler has no try/catch)', async () => {
+test('dml — API error returns isError', async () => {
   const conn = createMockConnection({
     sobject: (name) => ({
       create: async () => { throw new Error('UNABLE_TO_LOCK_ROW'); },
@@ -88,26 +88,44 @@ test('dml — API error throws (handler has no try/catch)', async () => {
       upsert: async () => { throw new Error('UNABLE_TO_LOCK_ROW'); },
     }),
   });
-  await assert.rejects(
-    () => handleDMLRecords(conn, {
-      operation: 'insert',
-      objectName: 'Account',
-      records: [{ Name: 'Will Fail' }],
-    }),
-    /UNABLE_TO_LOCK_ROW/
-  );
+  const result = await handleDMLRecords(conn, {
+    operation: 'insert',
+    objectName: 'Account',
+    records: [{ Name: 'Will Fail' }],
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('UNABLE_TO_LOCK_ROW'));
 });
 
-test('dml — upsert without externalIdField throws', async () => {
+test('dml — upsert without externalIdField returns isError', async () => {
   const conn = createMockConnection();
-  await assert.rejects(
-    () => handleDMLRecords(conn, {
-      operation: 'upsert',
-      objectName: 'Account',
-      records: [{ Name: 'Test' }],
+  const result = await handleDMLRecords(conn, {
+    operation: 'upsert',
+    objectName: 'Account',
+    records: [{ Name: 'Test' }],
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('externalIdField'));
+});
+
+test('dml — partial failure sets isError true', async () => {
+  const conn = createMockConnection({
+    sobject: (name) => ({
+      create: async (records) => [
+        { id: '001xx1', success: true, errors: [] },
+        { id: null, success: false, errors: [{ message: 'REQUIRED_FIELD_MISSING', statusCode: 'REQUIRED_FIELD_MISSING' }] },
+      ],
+      update: async () => [],
+      destroy: async () => [],
+      upsert: async () => [],
     }),
-    /externalIdField/
-  );
+  });
+  const result = await handleDMLRecords(conn, {
+    operation: 'insert',
+    objectName: 'Account',
+    records: [{ Name: 'Good' }, {}],
+  });
+  assert.equal(result.isError, true);
 });
 
 test('dml — delete extracts Ids from records', async () => {
