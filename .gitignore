@@ -17,12 +17,11 @@ dist/
 CLAUDE.md
 .claude/
 
+# Manual test scripts (may contain org-specific data)
+scripts/
+
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# claude related files
-.claude/
-CLAUDE.md
