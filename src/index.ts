@@ -28,6 +28,7 @@ import { LIST_ANALYTICS, handleListAnalytics, ListAnalyticsArgs } from "./tools/
 import { DESCRIBE_ANALYTICS, handleDescribeAnalytics, DescribeAnalyticsArgs } from "./tools/describeAnalytics.js";
 import { RUN_ANALYTICS, handleRunAnalytics, RunAnalyticsArgs } from "./tools/runAnalytics.js";
 import { REFRESH_DASHBOARD, handleRefreshDashboard, RefreshDashboardArgs } from "./tools/refreshDashboard.js";
+import { REST_API, handleRestApi, RestApiArgs } from "./tools/restApi.js";
 
 // Load environment variables — quiet: true suppresses dotenv 17.x stderr logging
 // MCP servers require stdout to contain ONLY JSON-RPC messages
@@ -66,7 +67,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     LIST_ANALYTICS,
     DESCRIBE_ANALYTICS,
     RUN_ANALYTICS,
-    REFRESH_DASHBOARD
+    REFRESH_DASHBOARD,
+    REST_API
   ],
 }));
 
@@ -390,6 +392,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           dashboardId: refreshArgs.dashboardId as string,
         };
         return await handleRefreshDashboard(conn, validatedArgs);
+      }
+
+      case "salesforce_rest_api": {
+        const restArgs = args as Record<string, unknown>;
+        if (!restArgs.method || !restArgs.endpoint) {
+          throw new Error('method and endpoint are required for REST API calls');
+        }
+        const validatedArgs: RestApiArgs = {
+          method: restArgs.method as "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+          endpoint: restArgs.endpoint as string,
+          body: restArgs.body as Record<string, any> | undefined,
+          queryParameters: restArgs.queryParameters as Record<string, string> | undefined,
+          apiVersion: restArgs.apiVersion as string | undefined,
+          rawPath: restArgs.rawPath as boolean | undefined
+        };
+        return await handleRestApi(conn, validatedArgs);
       }
 
       default:
