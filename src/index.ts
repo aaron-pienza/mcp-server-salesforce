@@ -29,9 +29,9 @@ import { DESCRIBE_ANALYTICS, handleDescribeAnalytics, DescribeAnalyticsArgs } fr
 import { RUN_ANALYTICS, handleRunAnalytics, RunAnalyticsArgs } from "./tools/runAnalytics.js";
 import { REFRESH_DASHBOARD, handleRefreshDashboard, RefreshDashboardArgs } from "./tools/refreshDashboard.js";
 
-// Load environment variables (using dotenv 16.x which has no stdout tips)
+// Load environment variables — quiet: true suppresses dotenv 17.x stderr logging
 // MCP servers require stdout to contain ONLY JSON-RPC messages
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const server = new Server(
   {
