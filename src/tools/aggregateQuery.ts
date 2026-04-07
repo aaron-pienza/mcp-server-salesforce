@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DEFAULT_LIMITS } from "../utils/pagination.js";
+import { validateIdentifier } from "../utils/sanitize.js";
 
 export const AGGREGATE_QUERY: Tool = {
   name: "salesforce_aggregate_query",
@@ -216,6 +217,11 @@ export async function handleAggregateQuery(conn: any, args: AggregateQueryArgs) 
         }],
         isError: true,
       };
+    }
+
+    const objValidation = validateIdentifier(objectName);
+    if (!objValidation.valid) {
+      return { content: [{ type: "text", text: objValidation.error! }], isError: true };
     }
 
     // Construct SOQL query

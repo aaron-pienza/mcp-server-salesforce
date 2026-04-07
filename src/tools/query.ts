@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DEFAULT_LIMITS, applyDefaults, formatPaginationFooter } from "../utils/pagination.js";
+import { validateIdentifier } from "../utils/sanitize.js";
 
 export const QUERY_RECORDS: Tool = {
   name: "salesforce_query_records",
@@ -140,6 +141,15 @@ export async function handleQueryRecords(conn: any, args: QueryArgs) {
   );
 
   try {
+    // Validate object name is a safe identifier
+    const objValidation = validateIdentifier(objectName);
+    if (!objValidation.valid) {
+      return {
+        content: [{ type: "text", text: objValidation.error! }],
+        isError: true,
+      };
+    }
+
     // Validate relationship field syntax
     const validation = validateRelationshipFields(fields);
     if (!validation.isValid) {

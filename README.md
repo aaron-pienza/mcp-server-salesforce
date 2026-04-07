@@ -17,7 +17,9 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Data Manipulation**: Insert, update, delete, and upsert records with ease
 * **Cross-Object Search**: Search across multiple objects using SOSL
 * **Apex Code Management**: Read, create, and update Apex classes and triggers
+* **Reports & Dashboards**: List, describe, run reports with filter overrides, and retrieve dashboard component data
 * **REST API Passthrough**: Call any Salesforce REST endpoint directly — Reports, Composite API, Files, Limits, and more
+* **Input Sanitization**: SOQL/SOSL injection prevention, identifier validation, and secure query construction
 * **Intuitive Error Handling**: Clear feedback with Salesforce-specific error details
 * **Switchable Authentication**: Supports multiple orgs. Easily switch your active Salesforce org based on the default org configured in your VS Code workspace (use Salesforce_CLI authentication for this feature).
 
@@ -355,6 +357,19 @@ Examples with Field Level Security:
 "Call our custom Apex REST endpoint at /services/apexrest/AccountSync"
 "Use the Composite API to create an Account and Contact in one call"
 ```
+
+## Security
+
+This server includes multiple layers of input sanitization and security controls:
+
+- **SOQL/SOSL injection prevention** — All user-supplied values are escaped before interpolation into queries. Object and field names are validated against Salesforce identifier patterns.
+- **Credential protection** — Access tokens are never logged. CLI output is redacted before logging.
+- **Audit logging** — Anonymous Apex execution is audit-logged with code length and preview.
+- **Shell injection prevention** — CLI invocation uses `execFile` (no shell) instead of `exec`.
+
+For full details, see [SECURITY.md](SECURITY.md).
+
+> **Note:** The `salesforce_execute_anonymous` and `salesforce_rest_api` tools are intentionally powerful — they provide full access to Salesforce capabilities within the connected user's permissions. Use Salesforce profiles and permission sets to restrict what the connected user can do.
 
 ## Development
 

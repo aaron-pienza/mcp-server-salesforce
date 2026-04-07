@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DEFAULT_LIMITS, applyDefaults, formatPaginationFooter } from "../utils/pagination.js";
+import { escapeSoqlValue, wildcardToLikePattern as safeWildcardToLike } from "../utils/sanitize.js";
 
 export const READ_APEX_TRIGGER: Tool = {
   name: "salesforce_read_apex_trigger",
@@ -69,23 +70,6 @@ export interface ReadApexTriggerArgs {
 }
 
 /**
- * Converts a wildcard pattern to a SQL LIKE pattern
- * @param pattern Pattern with * and ? wildcards
- * @returns SQL LIKE compatible pattern
- */
-function wildcardToLikePattern(pattern: string): string {
-  if (!pattern.includes('*') && !pattern.includes('?')) {
-    // If no wildcards, wrap with % for substring match
-    return `%${pattern}%`;
-  }
-  
-  // Replace * with % and ? with _ for SQL LIKE
-  let likePattern = pattern.replace(/\*/g, '%').replace(/\?/g, '_');
-  
-  return likePattern;
-}
-
-/**
  * Handles reading Apex triggers from Salesforce
  * @param conn Active Salesforce connection
  * @param args Arguments for reading Apex triggers
@@ -102,7 +86,7 @@ export async function handleReadApexTrigger(conn: any, args: ReadApexTriggerArgs
         SELECT Id, Name, Body, ApiVersion, TableEnumOrId, Status, 
                IsValid, LastModifiedDate, LastModifiedById
         FROM ApexTrigger 
-        WHERE Name = '${args.triggerName}'
+        WHERE Name = '${escapeSoqlValue(args.triggerName)}'
       `);
       
       if (result.records.length === 0) {
@@ -146,8 +130,8 @@ export async function handleReadApexTrigger(conn: any, args: ReadApexTriggerArgs
       
       // Add name pattern filter if provided
       if (args.namePattern) {
-        const likePattern = wildcardToLikePattern(args.namePattern);
-        query += ` WHERE Name LIKE '${likePattern}'`;
+        const likePattern = safeWildcardToLike(args.namePattern);
+        query += ` WHERE Name LIKE '${escapeSoqlValue(likePattern)}'`;
       }
       
       // Apply pagination
@@ -161,8 +145,8 @@ export async function handleReadApexTrigger(conn: any, args: ReadApexTriggerArgs
       // Get total count
       let countQuery = `SELECT COUNT() FROM ApexTrigger`;
       if (args.namePattern) {
-        const countLikePattern = wildcardToLikePattern(args.namePattern);
-        countQuery += ` WHERE Name LIKE '${countLikePattern}'`;
+        const countLikePattern = safeWildcardToLike(args.namePattern);
+        countQuery += ` WHERE Name LIKE '${escapeSoqlValue(countLikePattern)}'`;
       }
       let totalSize: number;
       try {

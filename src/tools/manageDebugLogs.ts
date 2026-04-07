@@ -1,6 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { Connection } from "jsforce";
 import { formatPaginationFooter } from "../utils/pagination.js";
+import { escapeSoqlValue } from "../utils/sanitize.js";
 
 export const MANAGE_DEBUG_LOGS: Tool = {
   name: "salesforce_manage_debug_logs",
@@ -121,28 +122,28 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
     if (isLikelyUsername) {
       // Query by username
       userQuery = await conn.query(`
-        SELECT Id, Username, Name, IsActive 
-        FROM User 
-        WHERE Username = '${args.username}'
+        SELECT Id, Username, Name, IsActive
+        FROM User
+        WHERE Username = '${escapeSoqlValue(args.username)}'
       `);
     } else {
       // Query by full name
       userQuery = await conn.query(`
-        SELECT Id, Username, Name, IsActive 
-        FROM User 
-        WHERE Name LIKE '%${args.username}%'
+        SELECT Id, Username, Name, IsActive
+        FROM User
+        WHERE Name LIKE '%${escapeSoqlValue(args.username)}%'
         ORDER BY LastModifiedDate DESC
         LIMIT 5
       `);
     }
-    
+
     if (userQuery.records.length === 0) {
       // If no results with the initial query, try a more flexible search
       userQuery = await conn.query(`
-        SELECT Id, Username, Name, IsActive 
-        FROM User 
-        WHERE Name LIKE '%${args.username}%' 
-        OR Username LIKE '%${args.username}%'
+        SELECT Id, Username, Name, IsActive
+        FROM User
+        WHERE Name LIKE '%${escapeSoqlValue(args.username)}%'
+        OR Username LIKE '%${escapeSoqlValue(args.username)}%'
         ORDER BY LastModifiedDate DESC
         LIMIT 5
       `);
@@ -204,8 +205,8 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
         
         // Check if a trace flag already exists for this user
         const existingTraceFlag = await conn.tooling.query(`
-          SELECT Id, DebugLevelId FROM TraceFlag 
-          WHERE TracedEntityId = '${user.Id}' 
+          SELECT Id, DebugLevelId FROM TraceFlag
+          WHERE TracedEntityId = '${escapeSoqlValue(user.Id)}'
           AND ExpirationDate > ${new Date().toISOString()}
         `);
         
@@ -273,7 +274,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
       case 'disable': {
         // Find all active trace flags for this user
         const traceFlags = await conn.tooling.query(`
-          SELECT Id FROM TraceFlag WHERE TracedEntityId = '${user.Id}' AND ExpirationDate > ${new Date().toISOString()}
+          SELECT Id FROM TraceFlag WHERE TracedEntityId = '${escapeSoqlValue(user.Id)}' AND ExpirationDate > ${new Date().toISOString()}
         `);
         
         if (traceFlags.records.length === 0) {
@@ -343,7 +344,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
             const logQuery = await conn.tooling.query(`
               SELECT Id, LogUserId, Operation, Application, Status, LogLength, LastModifiedDate, Request
               FROM ApexLog 
-              WHERE Id = '${args.logId}'
+              WHERE Id = '${escapeSoqlValue(args.logId)}'
             `);
             
             if (logQuery.records.length === 0) {
@@ -426,7 +427,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
         let logSoql = `
           SELECT Id, LogUserId, Operation, Application, Status, LogLength, LastModifiedDate, Request
           FROM ApexLog
-          WHERE LogUserId = '${user.Id}'
+          WHERE LogUserId = '${escapeSoqlValue(user.Id)}'
           ORDER BY LastModifiedDate DESC
           LIMIT ${limit}`;
         if (logOffset > 0) logSoql += ` OFFSET ${logOffset}`;
@@ -435,7 +436,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
         // Get total count for pagination
         let totalLogs: number;
         try {
-          const countResult = await conn.tooling.query(`SELECT COUNT() FROM ApexLog WHERE LogUserId = '${user.Id}'`);
+          const countResult = await conn.tooling.query(`SELECT COUNT() FROM ApexLog WHERE LogUserId = '${escapeSoqlValue(user.Id)}'`);
           totalLogs = countResult.totalSize;
         } catch {
           totalLogs = logs.records.length;

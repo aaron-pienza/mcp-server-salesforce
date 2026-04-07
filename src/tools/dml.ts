@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DMLResult } from "../types/salesforce";
+import { validateIdentifier } from "../utils/sanitize.js";
 
 export const DML_RECORDS: Tool = {
   name: "salesforce_dml_records",
@@ -45,6 +46,11 @@ export interface DMLArgs {
 
 export async function handleDMLRecords(conn: any, args: DMLArgs) {
   const { operation, objectName, records, externalIdField } = args;
+
+  const objValidation = validateIdentifier(objectName);
+  if (!objValidation.valid) {
+    return { content: [{ type: "text", text: objValidation.error! }], isError: true };
+  }
 
   try {
     let result: DMLResult | DMLResult[];

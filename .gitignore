@@ -6,7 +6,8 @@ package-lock.json
 dist/
 
 # Environment variables
-.env
+.env*
+!.env.example
 
 # IDE and OS files
 .DS_Store
