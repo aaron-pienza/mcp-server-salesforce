@@ -1,5 +1,10 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { escapeSoslSearchTerm, validateIdentifier } from "../utils/sanitize.js";
+import {
+  escapeSoslSearchTerm,
+  validateIdentifier,
+  validateQueryFieldToken,
+  validateSoslWithClauseValue,
+} from "../utils/sanitize.js";
 
 export const SEARCH_ALL: Tool = {
   name: "salesforce_search_all",
@@ -151,20 +156,43 @@ export interface SearchAllArgs {
   viewable?: boolean;
 }
 
-function buildWithClause(withClause: WithClause): string {
+function validateAndBuildWithClause(
+  withClause: WithClause,
+): { ok: true; clause: string } | { ok: false; error: string } {
   switch (withClause.type) {
-    case "SNIPPET":
-      return `WITH SNIPPET (${withClause.fields?.join(', ')})`;
+    case "SNIPPET": {
+      if (!withClause.fields?.length) {
+        return {
+          ok: false,
+          error: 'WITH SNIPPET requires a non-empty fields array of valid field API names.',
+        };
+      }
+      for (const f of withClause.fields) {
+        const id = validateIdentifier(f.trim());
+        if (!id.valid) {
+          return { ok: false, error: id.error! };
+        }
+      }
+      return { ok: true, clause: `WITH SNIPPET (${withClause.fields.join(', ')})` };
+    }
     case "DATA CATEGORY":
     case "DIVISION":
     case "NETWORK":
-    case "PRICEBOOKID":
-      return `WITH ${withClause.type} = ${withClause.value}`;
+    case "PRICEBOOKID": {
+      const v = validateSoslWithClauseValue(withClause.value, true);
+      if (!v.valid) {
+        return { ok: false, error: v.error! };
+      }
+      return {
+        ok: true,
+        clause: `WITH ${withClause.type} = ${withClause.value!.trim()}`,
+      };
+    }
     case "METADATA":
     case "SECURITY_ENFORCED":
-      return `WITH ${withClause.type}`;
+      return { ok: true, clause: `WITH ${withClause.type}` };
     default:
-      return '';
+      return { ok: false, error: `Unsupported WITH clause type: ${String((withClause as WithClause).type)}` };
   }
 }
 
@@ -195,7 +223,30 @@ export async function handleSearchAll(conn: any, args: SearchAllArgs) {
       }
     }
 
+    for (const obj of objects) {
+      for (const field of obj.fields) {
+        const fv = validateQueryFieldToken(field);
+        if (!fv.valid) {
+          return { content: [{ type: "text", text: fv.error! }], isError: true };
+        }
+      }
+    }
+
+    let withClausesStr = '';
+    if (withClauses?.length) {
+      const parts: string[] = [];
+      for (const w of withClauses) {
+        const built = validateAndBuildWithClause(w);
+        if (!built.ok) {
+          return { content: [{ type: "text", text: built.error }], isError: true };
+        }
+        parts.push(built.clause);
+      }
+      withClausesStr = parts.join(' ');
+    }
+
     // Construct the RETURNING clause with object-specific clauses
+
     const returningClause = objects
       .map(obj => {
         let clause = `${obj.name}(${obj.fields.join(',')}`
@@ -208,11 +259,6 @@ export async function handleSearchAll(conn: any, args: SearchAllArgs) {
         return clause + ')';
       })
       .join(', ');
-
-    // Build WITH clauses if present
-    const withClausesStr = withClauses
-      ? withClauses.map(buildWithClause).join(' ')
-      : '';
 
     // Construct complete SOSL query
     const soslQuery = `FIND {${escapeSoslSearchTerm(searchTerm)}} IN ${searchIn}

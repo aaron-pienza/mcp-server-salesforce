@@ -1,4 +1,5 @@
 import jsforce from 'jsforce';
+import type Connection from 'jsforce/lib/connection.js';
 import { ConnectionType, ConnectionConfig, SalesforceCLIResponse } from '../types/connection.js';
 import https from 'https';
 import querystring from 'querystring';
@@ -77,7 +78,7 @@ export async function getSalesforceOrgInfo(
  * @param config Optional connection configuration
  * @returns Connected jsforce Connection instance
  */
-export async function createSalesforceConnection(config?: ConnectionConfig) {
+export async function createSalesforceConnection(config?: ConnectionConfig): Promise<Connection> {
   const connectionType = config?.type ||
     (process.env.SALESFORCE_CONNECTION_TYPE as ConnectionType) ||
     ConnectionType.User_Password;

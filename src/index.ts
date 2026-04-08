@@ -5,10 +5,34 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import * as dotenv from "dotenv";
 
 import { createSalesforceConnection } from "./utils/connection.js";
+import {
+  assertEnum,
+  assertOptionalBoolean,
+  assertOptionalEnum,
+  assertOptionalLogLevel,
+  assertOptionalNumber,
+  assertOptionalPicklistValues,
+  assertOptionalPlainObject,
+  assertOptionalQueryStringRecord,
+  assertOptionalReportFilters,
+  assertOptionalSearchIn,
+  assertOptionalStandardDateFilter,
+  assertOptionalString,
+  assertOptionalStringArray,
+  assertOptionalTopRows,
+  assertOptionalWithClauses,
+  assertPlainObject,
+  assertRecordArray,
+  assertSearchAllObjectSpecs,
+  assertString,
+  assertStringArray,
+} from "./utils/validate.js";
 import { SEARCH_OBJECTS, handleSearchObjects, SearchObjectsArgs } from "./tools/search.js";
 import { DESCRIBE_OBJECT, handleDescribeObject } from "./tools/describe.js";
 import { QUERY_RECORDS, handleQueryRecords, QueryArgs } from "./tools/query.js";
@@ -17,7 +41,7 @@ import { DML_RECORDS, handleDMLRecords, DMLArgs } from "./tools/dml.js";
 import { MANAGE_OBJECT, handleManageObject, ManageObjectArgs } from "./tools/manageObject.js";
 import { MANAGE_FIELD, handleManageField, ManageFieldArgs } from "./tools/manageField.js";
 import { MANAGE_FIELD_PERMISSIONS, handleManageFieldPermissions, ManageFieldPermissionsArgs } from "./tools/manageFieldPermissions.js";
-import { SEARCH_ALL, handleSearchAll, SearchAllArgs, WithClause } from "./tools/searchAll.js";
+import { SEARCH_ALL, handleSearchAll, SearchAllArgs } from "./tools/searchAll.js";
 import { READ_APEX, handleReadApex, ReadApexArgs } from "./tools/readApex.js";
 import { WRITE_APEX, handleWriteApex, WriteApexArgs } from "./tools/writeApex.js";
 import { READ_APEX_TRIGGER, handleReadApexTrigger, ReadApexTriggerArgs } from "./tools/readApexTrigger.js";
@@ -29,6 +53,7 @@ import { DESCRIBE_ANALYTICS, handleDescribeAnalytics, DescribeAnalyticsArgs } fr
 import { RUN_ANALYTICS, handleRunAnalytics, RunAnalyticsArgs } from "./tools/runAnalytics.js";
 import { REFRESH_DASHBOARD, handleRefreshDashboard, RefreshDashboardArgs } from "./tools/refreshDashboard.js";
 import { REST_API, handleRestApi, RestApiArgs } from "./tools/restApi.js";
+import { RESOURCES, getResourceContent } from "./resources/index.js";
 
 // Load environment variables — quiet: true suppresses dotenv 17.x stderr logging
 // MCP servers require stdout to contain ONLY JSON-RPC messages
@@ -37,21 +62,35 @@ dotenv.config({ quiet: true });
 const server = new Server(
   {
     name: "salesforce-mcp-server",
-    version: "1.0.0",
+    version: "1.1.0",
   },
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   },
 );
 
+// Resource handlers
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: RESOURCES,
+}));
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const content = getResourceContent(request.params.uri);
+  if (!content) {
+    throw new Error(`Resource not found: ${request.params.uri}`);
+  }
+  return { contents: [content] };
+});
+
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
-    SEARCH_OBJECTS, 
-    DESCRIBE_OBJECT, 
-    QUERY_RECORDS, 
+    SEARCH_OBJECTS,
+    DESCRIBE_OBJECT,
+    QUERY_RECORDS,
     AGGREGATE_QUERY,
     DML_RECORDS,
     MANAGE_OBJECT,
@@ -81,331 +120,250 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (name) {
       case "salesforce_search_objects": {
-        const searchObjArgs = args as Record<string, unknown>;
-        if (!searchObjArgs.searchPattern) throw new Error('searchPattern is required');
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: SearchObjectsArgs = {
-          searchPattern: searchObjArgs.searchPattern as string,
-          limit: searchObjArgs.limit as number | undefined,
-          offset: searchObjArgs.offset as number | undefined,
+          searchPattern: assertString(a.searchPattern, 'searchPattern'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
+          offset: assertOptionalNumber(a.offset, 'offset'),
         };
         return await handleSearchObjects(conn, validatedArgs);
       }
 
       case "salesforce_describe_object": {
-        const { objectName } = args as { objectName: string };
-        if (!objectName) throw new Error('objectName is required');
-        return await handleDescribeObject(conn, objectName);
+        const a = assertPlainObject(args, 'arguments');
+        return await handleDescribeObject(conn, assertString(a.objectName, 'objectName'));
       }
 
       case "salesforce_query_records": {
-        const queryArgs = args as Record<string, unknown>;
-        if (!queryArgs.objectName || !Array.isArray(queryArgs.fields)) {
-          throw new Error('objectName and fields array are required for query');
-        }
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: QueryArgs = {
-          objectName: queryArgs.objectName as string,
-          fields: queryArgs.fields as string[],
-          whereClause: queryArgs.whereClause as string | undefined,
-          orderBy: queryArgs.orderBy as string | undefined,
-          limit: queryArgs.limit as number | undefined,
-          offset: queryArgs.offset as number | undefined
+          objectName: assertString(a.objectName, 'objectName'),
+          fields: assertStringArray(a.fields, 'fields'),
+          whereClause: assertOptionalString(a.whereClause, 'whereClause'),
+          orderBy: assertOptionalString(a.orderBy, 'orderBy'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
+          offset: assertOptionalNumber(a.offset, 'offset'),
         };
         return await handleQueryRecords(conn, validatedArgs);
       }
 
       case "salesforce_aggregate_query": {
-        const aggregateArgs = args as Record<string, unknown>;
-        if (!aggregateArgs.objectName || !Array.isArray(aggregateArgs.selectFields) || !Array.isArray(aggregateArgs.groupByFields)) {
-          throw new Error('objectName, selectFields array, and groupByFields array are required for aggregate query');
-        }
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: AggregateQueryArgs = {
-          objectName: aggregateArgs.objectName as string,
-          selectFields: aggregateArgs.selectFields as string[],
-          groupByFields: aggregateArgs.groupByFields as string[],
-          whereClause: aggregateArgs.whereClause as string | undefined,
-          havingClause: aggregateArgs.havingClause as string | undefined,
-          orderBy: aggregateArgs.orderBy as string | undefined,
-          limit: aggregateArgs.limit as number | undefined
+          objectName: assertString(a.objectName, 'objectName'),
+          selectFields: assertStringArray(a.selectFields, 'selectFields'),
+          groupByFields: assertStringArray(a.groupByFields, 'groupByFields'),
+          whereClause: assertOptionalString(a.whereClause, 'whereClause'),
+          havingClause: assertOptionalString(a.havingClause, 'havingClause'),
+          orderBy: assertOptionalString(a.orderBy, 'orderBy'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
         };
         return await handleAggregateQuery(conn, validatedArgs);
       }
 
       case "salesforce_dml_records": {
-        const dmlArgs = args as Record<string, unknown>;
-        if (!dmlArgs.operation || !dmlArgs.objectName || !Array.isArray(dmlArgs.records)) {
-          throw new Error('operation, objectName, and records array are required for DML');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: DMLArgs = {
-          operation: dmlArgs.operation as 'insert' | 'update' | 'delete' | 'upsert',
-          objectName: dmlArgs.objectName as string,
-          records: dmlArgs.records as Record<string, any>[],
-          externalIdField: dmlArgs.externalIdField as string | undefined
+          operation: assertEnum(a.operation, 'operation', ['insert', 'update', 'delete', 'upsert'] as const),
+          objectName: assertString(a.objectName, 'objectName'),
+          records: assertRecordArray(a.records, 'records'),
+          externalIdField: assertOptionalString(a.externalIdField, 'externalIdField'),
         };
         return await handleDMLRecords(conn, validatedArgs);
       }
 
       case "salesforce_manage_object": {
-        const objectArgs = args as Record<string, unknown>;
-        if (!objectArgs.operation || !objectArgs.objectName) {
-          throw new Error('operation and objectName are required for object management');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ManageObjectArgs = {
-          operation: objectArgs.operation as 'create' | 'update',
-          objectName: objectArgs.objectName as string,
-          label: objectArgs.label as string | undefined,
-          pluralLabel: objectArgs.pluralLabel as string | undefined,
-          description: objectArgs.description as string | undefined,
-          nameFieldLabel: objectArgs.nameFieldLabel as string | undefined,
-          nameFieldType: objectArgs.nameFieldType as 'Text' | 'AutoNumber' | undefined,
-          nameFieldFormat: objectArgs.nameFieldFormat as string | undefined,
-          sharingModel: objectArgs.sharingModel as 'ReadWrite' | 'Read' | 'Private' | 'ControlledByParent' | undefined
+          operation: assertEnum(a.operation, 'operation', ['create', 'update'] as const),
+          objectName: assertString(a.objectName, 'objectName'),
+          label: assertOptionalString(a.label, 'label'),
+          pluralLabel: assertOptionalString(a.pluralLabel, 'pluralLabel'),
+          description: assertOptionalString(a.description, 'description'),
+          nameFieldLabel: assertOptionalString(a.nameFieldLabel, 'nameFieldLabel'),
+          nameFieldType: assertOptionalEnum(a.nameFieldType, 'nameFieldType', ['Text', 'AutoNumber'] as const),
+          nameFieldFormat: assertOptionalString(a.nameFieldFormat, 'nameFieldFormat'),
+          sharingModel: assertOptionalEnum(a.sharingModel, 'sharingModel', [
+            'ReadWrite', 'Read', 'Private', 'ControlledByParent',
+          ] as const),
         };
         return await handleManageObject(conn, validatedArgs);
       }
 
       case "salesforce_manage_field": {
-        const fieldArgs = args as Record<string, unknown>;
-        if (!fieldArgs.operation || !fieldArgs.objectName || !fieldArgs.fieldName) {
-          throw new Error('operation, objectName, and fieldName are required for field management');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ManageFieldArgs = {
-          operation: fieldArgs.operation as 'create' | 'update',
-          objectName: fieldArgs.objectName as string,
-          fieldName: fieldArgs.fieldName as string,
-          label: fieldArgs.label as string | undefined,
-          type: fieldArgs.type as string | undefined,
-          required: fieldArgs.required as boolean | undefined,
-          unique: fieldArgs.unique as boolean | undefined,
-          externalId: fieldArgs.externalId as boolean | undefined,
-          length: fieldArgs.length as number | undefined,
-          precision: fieldArgs.precision as number | undefined,
-          scale: fieldArgs.scale as number | undefined,
-          referenceTo: fieldArgs.referenceTo as string | undefined,
-          relationshipLabel: fieldArgs.relationshipLabel as string | undefined,
-          relationshipName: fieldArgs.relationshipName as string | undefined,
-          deleteConstraint: fieldArgs.deleteConstraint as 'Cascade' | 'Restrict' | 'SetNull' | undefined,
-          picklistValues: fieldArgs.picklistValues as Array<{ label: string; isDefault?: boolean }> | undefined,
-          description: fieldArgs.description as string | undefined,
-          grantAccessTo: fieldArgs.grantAccessTo as string[] | undefined
+          operation: assertEnum(a.operation, 'operation', ['create', 'update'] as const),
+          objectName: assertString(a.objectName, 'objectName'),
+          fieldName: assertString(a.fieldName, 'fieldName'),
+          label: assertOptionalString(a.label, 'label'),
+          type: assertOptionalString(a.type, 'type'),
+          required: assertOptionalBoolean(a.required, 'required'),
+          unique: assertOptionalBoolean(a.unique, 'unique'),
+          externalId: assertOptionalBoolean(a.externalId, 'externalId'),
+          length: assertOptionalNumber(a.length, 'length'),
+          precision: assertOptionalNumber(a.precision, 'precision'),
+          scale: assertOptionalNumber(a.scale, 'scale'),
+          referenceTo: assertOptionalString(a.referenceTo, 'referenceTo'),
+          relationshipLabel: assertOptionalString(a.relationshipLabel, 'relationshipLabel'),
+          relationshipName: assertOptionalString(a.relationshipName, 'relationshipName'),
+          deleteConstraint: assertOptionalEnum(a.deleteConstraint, 'deleteConstraint', [
+            'Cascade', 'Restrict', 'SetNull',
+          ] as const),
+          picklistValues: assertOptionalPicklistValues(a.picklistValues, 'picklistValues'),
+          description: assertOptionalString(a.description, 'description'),
+          grantAccessTo: assertOptionalStringArray(a.grantAccessTo, 'grantAccessTo'),
         };
         return await handleManageField(conn, validatedArgs);
       }
 
       case "salesforce_manage_field_permissions": {
-        const permArgs = args as Record<string, unknown>;
-        if (!permArgs.operation || !permArgs.objectName || !permArgs.fieldName) {
-          throw new Error('operation, objectName, and fieldName are required for field permissions management');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ManageFieldPermissionsArgs = {
-          operation: permArgs.operation as 'grant' | 'revoke' | 'view',
-          objectName: permArgs.objectName as string,
-          fieldName: permArgs.fieldName as string,
-          profileNames: permArgs.profileNames as string[] | undefined,
-          readable: permArgs.readable as boolean | undefined,
-          editable: permArgs.editable as boolean | undefined
+          operation: assertEnum(a.operation, 'operation', ['grant', 'revoke', 'view'] as const),
+          objectName: assertString(a.objectName, 'objectName'),
+          fieldName: assertString(a.fieldName, 'fieldName'),
+          profileNames: assertOptionalStringArray(a.profileNames, 'profileNames'),
+          readable: assertOptionalBoolean(a.readable, 'readable'),
+          editable: assertOptionalBoolean(a.editable, 'editable'),
         };
         return await handleManageFieldPermissions(conn, validatedArgs);
       }
 
       case "salesforce_search_all": {
-        const searchArgs = args as Record<string, unknown>;
-        if (!searchArgs.searchTerm || !Array.isArray(searchArgs.objects)) {
-          throw new Error('searchTerm and objects array are required for search');
-        }
-
-        // Validate objects array
-        const objects = searchArgs.objects as Array<Record<string, unknown>>;
-        if (!objects.every(obj => obj.name && Array.isArray(obj.fields))) {
-          throw new Error('Each object must specify name and fields array');
-        }
-
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: SearchAllArgs = {
-          searchTerm: searchArgs.searchTerm as string,
-          searchIn: searchArgs.searchIn as "ALL FIELDS" | "NAME FIELDS" | "EMAIL FIELDS" | "PHONE FIELDS" | "SIDEBAR FIELDS" | undefined,
-          objects: objects.map(obj => ({
-            name: obj.name as string,
-            fields: obj.fields as string[],
-            where: obj.where as string | undefined,
-            orderBy: obj.orderBy as string | undefined,
-            limit: obj.limit as number | undefined
-          })),
-          withClauses: searchArgs.withClauses as WithClause[] | undefined,
-          updateable: searchArgs.updateable as boolean | undefined,
-          viewable: searchArgs.viewable as boolean | undefined
+          searchTerm: assertString(a.searchTerm, 'searchTerm'),
+          searchIn: assertOptionalSearchIn(a.searchIn, 'searchIn'),
+          objects: assertSearchAllObjectSpecs(a.objects, 'objects'),
+          withClauses: assertOptionalWithClauses(a.withClauses, 'withClauses'),
+          updateable: assertOptionalBoolean(a.updateable, 'updateable'),
+          viewable: assertOptionalBoolean(a.viewable, 'viewable'),
         };
-
         return await handleSearchAll(conn, validatedArgs);
       }
 
       case "salesforce_read_apex": {
-        const apexArgs = args as Record<string, unknown>;
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ReadApexArgs = {
-          className: apexArgs.className as string | undefined,
-          namePattern: apexArgs.namePattern as string | undefined,
-          includeMetadata: apexArgs.includeMetadata as boolean | undefined,
-          limit: apexArgs.limit as number | undefined,
-          offset: apexArgs.offset as number | undefined
+          className: assertOptionalString(a.className, 'className'),
+          namePattern: assertOptionalString(a.namePattern, 'namePattern'),
+          includeMetadata: assertOptionalBoolean(a.includeMetadata, 'includeMetadata'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
+          offset: assertOptionalNumber(a.offset, 'offset'),
         };
-
         return await handleReadApex(conn, validatedArgs);
       }
 
       case "salesforce_write_apex": {
-        const apexArgs = args as Record<string, unknown>;
-        if (!apexArgs.operation || !apexArgs.className || !apexArgs.body) {
-          throw new Error('operation, className, and body are required for writing Apex');
-        }
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: WriteApexArgs = {
-          operation: apexArgs.operation as 'create' | 'update',
-          className: apexArgs.className as string,
-          apiVersion: apexArgs.apiVersion as string | undefined,
-          body: apexArgs.body as string
+          operation: assertEnum(a.operation, 'operation', ['create', 'update'] as const),
+          className: assertString(a.className, 'className'),
+          apiVersion: assertOptionalString(a.apiVersion, 'apiVersion'),
+          body: assertString(a.body, 'body'),
         };
-
         return await handleWriteApex(conn, validatedArgs);
       }
 
       case "salesforce_read_apex_trigger": {
-        const triggerArgs = args as Record<string, unknown>;
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ReadApexTriggerArgs = {
-          triggerName: triggerArgs.triggerName as string | undefined,
-          namePattern: triggerArgs.namePattern as string | undefined,
-          includeMetadata: triggerArgs.includeMetadata as boolean | undefined,
-          limit: triggerArgs.limit as number | undefined,
-          offset: triggerArgs.offset as number | undefined
+          triggerName: assertOptionalString(a.triggerName, 'triggerName'),
+          namePattern: assertOptionalString(a.namePattern, 'namePattern'),
+          includeMetadata: assertOptionalBoolean(a.includeMetadata, 'includeMetadata'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
+          offset: assertOptionalNumber(a.offset, 'offset'),
         };
-
         return await handleReadApexTrigger(conn, validatedArgs);
       }
 
       case "salesforce_write_apex_trigger": {
-        const triggerArgs = args as Record<string, unknown>;
-        if (!triggerArgs.operation || !triggerArgs.triggerName || !triggerArgs.body) {
-          throw new Error('operation, triggerName, and body are required for writing Apex trigger');
-        }
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: WriteApexTriggerArgs = {
-          operation: triggerArgs.operation as 'create' | 'update',
-          triggerName: triggerArgs.triggerName as string,
-          objectName: triggerArgs.objectName as string | undefined,
-          apiVersion: triggerArgs.apiVersion as string | undefined,
-          body: triggerArgs.body as string
+          operation: assertEnum(a.operation, 'operation', ['create', 'update'] as const),
+          triggerName: assertString(a.triggerName, 'triggerName'),
+          objectName: assertOptionalString(a.objectName, 'objectName'),
+          apiVersion: assertOptionalString(a.apiVersion, 'apiVersion'),
+          body: assertString(a.body, 'body'),
         };
-
         return await handleWriteApexTrigger(conn, validatedArgs);
       }
 
       case "salesforce_execute_anonymous": {
-        const executeArgs = args as Record<string, unknown>;
-        if (!executeArgs.apexCode) {
-          throw new Error('apexCode is required for executing anonymous Apex');
-        }
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ExecuteAnonymousArgs = {
-          apexCode: executeArgs.apexCode as string,
-          logLevel: executeArgs.logLevel as 'NONE' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'FINE' | 'FINER' | 'FINEST' | undefined
+          apexCode: assertString(a.apexCode, 'apexCode'),
+          logLevel: assertOptionalLogLevel(a.logLevel, 'logLevel'),
         };
-
         return await handleExecuteAnonymous(conn, validatedArgs);
       }
 
       case "salesforce_manage_debug_logs": {
-        const debugLogsArgs = args as Record<string, unknown>;
-        if (!debugLogsArgs.operation || !debugLogsArgs.username) {
-          throw new Error('operation and username are required for managing debug logs');
-        }
-        
-        // Type check and conversion
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ManageDebugLogsArgs = {
-          operation: debugLogsArgs.operation as 'enable' | 'disable' | 'retrieve',
-          username: debugLogsArgs.username as string,
-          logLevel: debugLogsArgs.logLevel as 'NONE' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'FINE' | 'FINER' | 'FINEST' | undefined,
-          expirationTime: debugLogsArgs.expirationTime as number | undefined,
-          limit: debugLogsArgs.limit as number | undefined,
-          logId: debugLogsArgs.logId as string | undefined,
-          includeBody: debugLogsArgs.includeBody as boolean | undefined,
-          offset: debugLogsArgs.offset as number | undefined
+          operation: assertEnum(a.operation, 'operation', ['enable', 'disable', 'retrieve'] as const),
+          username: assertString(a.username, 'username'),
+          logLevel: assertOptionalLogLevel(a.logLevel, 'logLevel'),
+          expirationTime: assertOptionalNumber(a.expirationTime, 'expirationTime'),
+          limit: assertOptionalNumber(a.limit, 'limit'),
+          logId: assertOptionalString(a.logId, 'logId'),
+          includeBody: assertOptionalBoolean(a.includeBody, 'includeBody'),
+          offset: assertOptionalNumber(a.offset, 'offset'),
         };
-
         return await handleManageDebugLogs(conn, validatedArgs);
       }
 
       case "salesforce_list_analytics": {
-        const listAnalyticsArgs = args as Record<string, unknown>;
-        if (!listAnalyticsArgs.type) {
-          throw new Error('type is required');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: ListAnalyticsArgs = {
-          type: listAnalyticsArgs.type as 'report' | 'dashboard',
-          searchTerm: listAnalyticsArgs.searchTerm as string | undefined,
+          type: assertEnum(a.type, 'type', ['report', 'dashboard'] as const),
+          searchTerm: assertOptionalString(a.searchTerm, 'searchTerm'),
         };
         return await handleListAnalytics(conn, validatedArgs);
       }
 
       case "salesforce_describe_analytics": {
-        const descAnalyticsArgs = args as Record<string, unknown>;
-        if (!descAnalyticsArgs.type || !descAnalyticsArgs.resourceId) {
-          throw new Error('type and resourceId are required');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: DescribeAnalyticsArgs = {
-          type: descAnalyticsArgs.type as 'report' | 'dashboard',
-          resourceId: descAnalyticsArgs.resourceId as string,
+          type: assertEnum(a.type, 'type', ['report', 'dashboard'] as const),
+          resourceId: assertString(a.resourceId, 'resourceId'),
         };
         return await handleDescribeAnalytics(conn, validatedArgs);
       }
 
       case "salesforce_run_analytics": {
-        const runAnalyticsArgs = args as Record<string, unknown>;
-        if (!runAnalyticsArgs.type || !runAnalyticsArgs.resourceId) {
-          throw new Error('type and resourceId are required');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: RunAnalyticsArgs = {
-          type: runAnalyticsArgs.type as 'report' | 'dashboard',
-          resourceId: runAnalyticsArgs.resourceId as string,
-          includeDetails: runAnalyticsArgs.includeDetails as boolean | undefined,
-          filters: runAnalyticsArgs.filters as RunAnalyticsArgs['filters'],
-          booleanFilter: runAnalyticsArgs.booleanFilter as string | undefined,
-          standardDateFilter: runAnalyticsArgs.standardDateFilter as RunAnalyticsArgs['standardDateFilter'],
-          topRows: runAnalyticsArgs.topRows as RunAnalyticsArgs['topRows'],
+          type: assertEnum(a.type, 'type', ['report', 'dashboard'] as const),
+          resourceId: assertString(a.resourceId, 'resourceId'),
+          includeDetails: assertOptionalBoolean(a.includeDetails, 'includeDetails'),
+          filters: assertOptionalReportFilters(a.filters, 'filters'),
+          booleanFilter: assertOptionalString(a.booleanFilter, 'booleanFilter'),
+          standardDateFilter: assertOptionalStandardDateFilter(a.standardDateFilter, 'standardDateFilter'),
+          topRows: assertOptionalTopRows(a.topRows, 'topRows'),
         };
         return await handleRunAnalytics(conn, validatedArgs);
       }
 
       case "salesforce_refresh_dashboard": {
-        const refreshArgs = args as Record<string, unknown>;
-        if (!refreshArgs.operation || !refreshArgs.dashboardId) {
-          throw new Error('operation and dashboardId are required');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: RefreshDashboardArgs = {
-          operation: refreshArgs.operation as 'refresh' | 'status',
-          dashboardId: refreshArgs.dashboardId as string,
+          operation: assertEnum(a.operation, 'operation', ['refresh', 'status'] as const),
+          dashboardId: assertString(a.dashboardId, 'dashboardId'),
         };
         return await handleRefreshDashboard(conn, validatedArgs);
       }
 
       case "salesforce_rest_api": {
-        const restArgs = args as Record<string, unknown>;
-        if (!restArgs.method || !restArgs.endpoint) {
-          throw new Error('method and endpoint are required for REST API calls');
-        }
+        const a = assertPlainObject(args, 'arguments');
         const validatedArgs: RestApiArgs = {
-          method: restArgs.method as "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
-          endpoint: restArgs.endpoint as string,
-          body: restArgs.body as Record<string, any> | undefined,
-          queryParameters: restArgs.queryParameters as Record<string, string> | undefined,
-          apiVersion: restArgs.apiVersion as string | undefined,
-          rawPath: restArgs.rawPath as boolean | undefined
+          method: assertEnum(a.method, 'method', ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'] as const),
+          endpoint: assertString(a.endpoint, 'endpoint'),
+          body: assertOptionalPlainObject(a.body, 'body'),
+          queryParameters: assertOptionalQueryStringRecord(a.queryParameters, 'queryParameters'),
+          apiVersion: assertOptionalString(a.apiVersion, 'apiVersion'),
+          rawPath: assertOptionalBoolean(a.rawPath, 'rawPath'),
         };
         return await handleRestApi(conn, validatedArgs);
       }

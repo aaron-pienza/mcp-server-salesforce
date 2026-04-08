@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DEFAULT_LIMITS } from "../utils/pagination.js";
-import { validateIdentifier } from "../utils/sanitize.js";
+import { validateAggregateFieldToken, validateIdentifier } from "../utils/sanitize.js";
 
 export const AGGREGATE_QUERY: Tool = {
   name: "salesforce_aggregate_query",
@@ -182,6 +182,19 @@ export async function handleAggregateQuery(conn: any, args: AggregateQueryArgs) 
   const { objectName, selectFields, groupByFields, whereClause, havingClause, orderBy, limit } = args;
 
   try {
+    for (const field of selectFields) {
+      const fv = validateAggregateFieldToken(field);
+      if (!fv.valid) {
+        return { content: [{ type: "text", text: fv.error! }], isError: true };
+      }
+    }
+    for (const field of groupByFields) {
+      const fv = validateAggregateFieldToken(field);
+      if (!fv.valid) {
+        return { content: [{ type: "text", text: fv.error! }], isError: true };
+      }
+    }
+
     // Validate GROUP BY contains all non-aggregate fields
     const groupByValidation = validateGroupByFields(selectFields, groupByFields);
     if (!groupByValidation.isValid) {

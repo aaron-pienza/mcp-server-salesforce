@@ -1,5 +1,4 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { Connection } from "jsforce";
 import { escapeSoqlValue, escapeRegExpInput, validateIdentifier } from "../utils/sanitize.js";
 
 export const WRITE_APEX: Tool = {

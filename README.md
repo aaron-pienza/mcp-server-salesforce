@@ -19,6 +19,10 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Intuitive Error Handling**: Clear feedback with Salesforce-specific error details
 * **Switchable Authentication**: Supports multiple orgs. Easily switch your active Salesforce org based on the default org configured in your VS Code workspace (use Salesforce_CLI authentication for this feature).
 
+## Getting Started
+
+For a complete walkthrough — installing the Salesforce CLI, authenticating, and configuring Claude Code or Claude Desktop — see **[SETUP.md](SETUP.md)**.
+
 ## Installation
 
 ### Global Installation (npm)

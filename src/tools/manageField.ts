@@ -1,5 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { FieldMetadataInfo } from "../types/metadata";
+import { FieldMetadataInfo } from "../types/metadata.js";
 import { escapeSoqlValue, validateIdentifier } from "../utils/sanitize.js";
 
 export const MANAGE_FIELD: Tool = {

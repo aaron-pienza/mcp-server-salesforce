@@ -7,6 +7,11 @@ import {
   validateFieldPath,
   escapeRegExpInput,
   wildcardToLikePattern,
+  validateSafeSoqlFragment,
+  validateQueryFieldToken,
+  validateAggregateFieldToken,
+  validateSoslWithClauseValue,
+  isValidSalesforceId,
 } from '../../dist/utils/sanitize.js';
 
 // escapeSoqlValue
@@ -120,4 +125,36 @@ test('wildcardToLikePattern — escapes existing % in input', () => {
 test('wildcardToLikePattern — escapes existing _ in input', () => {
   const result = wildcardToLikePattern('my_class');
   assert.ok(result.includes('\\_'));
+});
+
+test('validateSafeSoqlFragment — rejects RETURNING keyword', () => {
+  assert.equal(validateSafeSoqlFragment("x RETURNING Account").valid, false);
+});
+
+test('validateQueryFieldToken — valid field and subquery', () => {
+  assert.ok(validateQueryFieldToken('Name').valid);
+  assert.ok(validateQueryFieldToken('(SELECT Id FROM Contacts)').valid);
+});
+
+test('validateQueryFieldToken — rejects SELECT without parens', () => {
+  const r = validateQueryFieldToken('SELECT Id FROM Contacts');
+  assert.equal(r.valid, false);
+});
+
+test('validateAggregateFieldToken — allows COUNT(Id) alias', () => {
+  assert.ok(validateAggregateFieldToken('COUNT(Id) cnt').valid);
+});
+
+test('validateSoslWithClauseValue — required rejects empty', () => {
+  assert.equal(validateSoslWithClauseValue('', true).valid, false);
+});
+
+test('validateSoslWithClauseValue — rejects injection', () => {
+  assert.equal(validateSoslWithClauseValue('foo RETURNING Account', true).valid, false);
+});
+
+test('isValidSalesforceId — 15 and 18 char alphanumerics', () => {
+  assert.equal(isValidSalesforceId('005000000000ABC'), true);
+  assert.equal(isValidSalesforceId('005000000000ABCDAA'), true);
+  assert.equal(isValidSalesforceId('005short'), false);
 });

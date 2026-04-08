@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { SalesforceField, SalesforceDescribeResponse } from "../types/salesforce";
+import { SalesforceField, SalesforceDescribeResponse } from "../types/salesforce.js";
+import { validateIdentifier } from "../utils/sanitize.js";
 
 export const DESCRIBE_OBJECT: Tool = {
   name: "salesforce_describe_object",
@@ -17,6 +18,14 @@ export const DESCRIBE_OBJECT: Tool = {
 };
 
 export async function handleDescribeObject(conn: any, objectName: string) {
+  const objValidation = validateIdentifier(objectName);
+  if (!objValidation.valid) {
+    return {
+      content: [{ type: "text", text: objValidation.error! }],
+      isError: true,
+    };
+  }
+
   try {
     const describe = await conn.describe(objectName) as SalesforceDescribeResponse;
 

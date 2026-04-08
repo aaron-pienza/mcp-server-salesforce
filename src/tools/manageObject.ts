@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { MetadataInfo } from "../types/metadata";
+import { MetadataInfo } from "../types/metadata.js";
+import { validateIdentifier } from "../utils/sanitize.js";
 
 export const MANAGE_OBJECT: Tool = {
   name: "salesforce_manage_object",
@@ -74,6 +75,11 @@ export interface ManageObjectArgs {
 
 export async function handleManageObject(conn: any, args: ManageObjectArgs) {
   const { operation, objectName, label, pluralLabel, description, nameFieldLabel, nameFieldType, nameFieldFormat, sharingModel } = args;
+
+  const objValidation = validateIdentifier(objectName);
+  if (!objValidation.valid) {
+    return { content: [{ type: "text", text: objValidation.error! }], isError: true };
+  }
 
   try {
     if (operation === 'create') {

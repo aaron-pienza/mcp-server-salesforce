@@ -1,5 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { SalesforceObject } from "../types/salesforce";
+import { SalesforceObject } from "../types/salesforce.js";
 import { DEFAULT_LIMITS, applyDefaults, formatPaginationFooter } from "../utils/pagination.js";
 
 export const SEARCH_OBJECTS: Tool = {

@@ -1,5 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { DMLResult } from "../types/salesforce";
+import { DMLResult } from "../types/salesforce.js";
 import { validateIdentifier } from "../utils/sanitize.js";
 
 export const DML_RECORDS: Tool = {
@@ -40,7 +40,7 @@ export const DML_RECORDS: Tool = {
 export interface DMLArgs {
   operation: 'insert' | 'update' | 'delete' | 'upsert';
   objectName: string;
-  records: Record<string, any>[];
+  records: Record<string, unknown>[];
   externalIdField?: string;
 }
 
@@ -55,15 +55,18 @@ export async function handleDMLRecords(conn: any, args: DMLArgs) {
   try {
     let result: DMLResult | DMLResult[];
 
+    // jsforce DML generics are narrower than MCP-validated Record payloads; cast at the boundary.
     switch (operation) {
       case 'insert':
-        result = await conn.sobject(objectName).create(records);
+        result = (await conn.sobject(objectName).create(records as never)) as DMLResult | DMLResult[];
         break;
       case 'update':
-        result = await conn.sobject(objectName).update(records);
+        result = (await conn.sobject(objectName).update(records as never)) as DMLResult | DMLResult[];
         break;
       case 'delete':
-        result = await conn.sobject(objectName).destroy(records.map(r => r.Id));
+        result = (await conn.sobject(objectName).destroy(
+          records.map((r) => String(r.Id)),
+        )) as DMLResult | DMLResult[];
         break;
       case 'upsert':
         if (!externalIdField) {
@@ -75,7 +78,10 @@ export async function handleDMLRecords(conn: any, args: DMLArgs) {
             isError: true,
           };
         }
-        result = await conn.sobject(objectName).upsert(records, externalIdField);
+        result = (await conn.sobject(objectName).upsert(
+          records as never,
+          externalIdField,
+        )) as DMLResult | DMLResult[];
         break;
       default:
         return {

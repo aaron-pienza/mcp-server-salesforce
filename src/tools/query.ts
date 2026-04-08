@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { DEFAULT_LIMITS, applyDefaults, formatPaginationFooter } from "../utils/pagination.js";
-import { validateIdentifier } from "../utils/sanitize.js";
+import { validateIdentifier, validateQueryFieldToken } from "../utils/sanitize.js";
 
 export const QUERY_RECORDS: Tool = {
   name: "salesforce_query_records",
@@ -160,6 +160,16 @@ export async function handleQueryRecords(conn: any, args: QueryArgs) {
         }],
         isError: true,
       };
+    }
+
+    for (const field of fields) {
+      const fv = validateQueryFieldToken(field);
+      if (!fv.valid) {
+        return {
+          content: [{ type: "text", text: fv.error! }],
+          isError: true,
+        };
+      }
     }
 
     // Construct SOQL query

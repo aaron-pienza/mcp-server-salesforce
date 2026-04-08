@@ -79,3 +79,117 @@ export function wildcardToLikePattern(pattern: string): string {
   escaped = escaped.replace(/\*/g, '%').replace(/\?/g, '_');
   return escaped;
 }
+
+const MAX_SOQL_FRAGMENT_LEN = 10_000
+
+/**
+ * Rejects patterns that could break out of SOQL/SOSL field positions or inject clauses.
+ */
+export function validateSafeSoqlFragment(value: string): { valid: boolean; error?: string } {
+  if (value.length > MAX_SOQL_FRAGMENT_LEN) {
+    return {
+      valid: false,
+      error: `Value exceeds maximum length of ${MAX_SOQL_FRAGMENT_LEN} characters.`,
+    }
+  }
+  if (/[\n\r]/.test(value)) {
+    return { valid: false, error: 'Newlines are not allowed in this value.' }
+  }
+  if (/[{}]/.test(value)) {
+    return { valid: false, error: 'Braces { } are not allowed in this value.' }
+  }
+  if (/\bRETURNING\b/i.test(value) || /\bFIND\b/i.test(value)) {
+    return { valid: false, error: 'Value contains reserved SOSL keywords (FIND/RETURNING).' }
+  }
+  if (/;|--/.test(value)) {
+    return { valid: false, error: 'Semicolons and SQL-style comments are not allowed in this value.' }
+  }
+  return { valid: true }
+}
+
+const MAX_SOSL_WITH_VALUE_LEN = 2_000
+
+/**
+ * Validates user-supplied WITH clause values (SOSL), after trimming.
+ */
+export function validateSoslWithClauseValue(
+  value: string | undefined,
+  required: boolean,
+): { valid: boolean; error?: string } {
+  if (value === undefined || value === '') {
+    if (required) {
+      return { valid: false, error: 'WITH clause value is required for this clause type.' }
+    }
+    return { valid: true }
+  }
+  const v = value.trim()
+  if (v.length > MAX_SOSL_WITH_VALUE_LEN) {
+    return {
+      valid: false,
+      error: `WITH clause value exceeds maximum length of ${MAX_SOSL_WITH_VALUE_LEN} characters.`,
+    }
+  }
+  return validateSafeSoqlFragment(v)
+}
+
+/**
+ * Validates a single field/expression token for salesforce_query_records SELECT list.
+ */
+export function validateQueryFieldToken(field: string): { valid: boolean; error?: string } {
+  const f = field.trim()
+  if (!f) {
+    return { valid: false, error: 'Field name cannot be empty.' }
+  }
+  const safe = validateSafeSoqlFragment(f)
+  if (!safe.valid) {
+    return safe
+  }
+  if (/\bSELECT\b/i.test(f) && /\bFROM\b/i.test(f) && !/^\s*\(/i.test(f)) {
+    return {
+      valid: false,
+      error: `Invalid subquery format: "${field}". Child relationship queries should be wrapped in parentheses (e.g., "(SELECT Id FROM Contacts)").`,
+    }
+  }
+  if (/^\(\s*SELECT\b/i.test(f)) {
+    if (!f.endsWith(')')) {
+      return {
+        valid: false,
+        error: `Invalid subquery format: "${field}". Child relationship queries must be wrapped in parentheses.`,
+      }
+    }
+    return { valid: true }
+  }
+  if (f.includes('(')) {
+    return { valid: true }
+  }
+  if (f.includes('.')) {
+    return validateFieldPath(f)
+  }
+  return validateIdentifier(f)
+}
+
+/**
+ * Validates select/group tokens for salesforce_aggregate_query (identifiers, paths, or function expressions).
+ */
+export function validateAggregateFieldToken(field: string): { valid: boolean; error?: string } {
+  const f = field.trim()
+  if (!f) {
+    return { valid: false, error: 'Field or expression cannot be empty.' }
+  }
+  const safe = validateSafeSoqlFragment(f)
+  if (!safe.valid) {
+    return safe
+  }
+  if (f.includes('(')) {
+    return { valid: true }
+  }
+  if (f.includes('.')) {
+    return validateFieldPath(f)
+  }
+  return validateIdentifier(f)
+}
+
+/** Salesforce record Id (15 or 18 alphanumeric). */
+export function isValidSalesforceId(id: string): boolean {
+  return /^[a-zA-Z0-9]{15}$|^[a-zA-Z0-9]{18}$/.test(id)
+}

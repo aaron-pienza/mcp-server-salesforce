@@ -83,7 +83,7 @@ Examples:
 export interface RestApiArgs {
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   endpoint: string;
-  body?: Record<string, any>;
+  body?: Record<string, unknown>;
   queryParameters?: Record<string, string>;
   apiVersion?: string;
   rawPath?: boolean;

@@ -1,5 +1,4 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { Connection } from "jsforce";
 import { formatPaginationFooter } from "../utils/pagination.js";
 import { escapeSoqlValue } from "../utils/sanitize.js";
 

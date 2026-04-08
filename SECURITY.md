@@ -7,7 +7,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 ### How to Report
 
 Please use GitHub's private vulnerability reporting:
-- Go to the [Security tab](https://github.com/tsmztech/mcp-server-salesforce/security/advisories)
+- Go to the [Security tab](https://github.com/aaron-pienza/mcp-server-salesforce/security/advisories)
 - Click "Report a vulnerability"
 
 This ensures the report stays private until a fix is available.
@@ -28,7 +28,8 @@ This ensures the report stays private until a fix is available.
 
 ### Input Sanitization
 - **SOQL injection prevention:** All string values interpolated into SOQL queries are escaped using `escapeSoqlValue()` (doubles single quotes). Salesforce object names, field names, and identifiers are validated against a strict pattern before use in queries.
-- **SOSL injection prevention:** Search terms are escaped using `escapeSoslSearchTerm()` which backslash-escapes all SOSL reserved characters before interpolation into FIND clauses.
+- **Query / aggregate field tokens:** `salesforce_query_records` and `salesforce_aggregate_query` validate each SELECT/GROUP field token with `validateQueryFieldToken()` / `validateAggregateFieldToken()` (identifiers, dotted paths, safe function/subquery shapes, and a denylist for clause-breakout patterns). Raw `whereClause`, `orderBy`, and `havingClause` strings remain trusted query fragments by design (see Trust Boundaries).
+- **SOSL injection prevention:** Search terms are escaped using `escapeSoslSearchTerm()` which backslash-escapes all SOSL reserved characters before interpolation into FIND clauses. `WITH` clause values for `salesforce_search_all` are validated with `validateSoslWithClauseValue()` / `validateSafeSoqlFragment()`; `WITH SNIPPET` field names must each pass `validateIdentifier()`.
 - **Regex injection prevention:** User-supplied strings used in RegExp constructors are escaped with `escapeRegExpInput()` and validated as Salesforce identifiers first.
 
 ### Credential Protection
@@ -41,7 +42,7 @@ This ensures the report stays private until a fix is available.
 - OAuth token requests have a 30-second timeout.
 
 ### Audit Logging
-- Anonymous Apex code execution is audit-logged to stderr with timestamp, code length, and a truncated preview.
+- Anonymous Apex code execution is audit-logged to stderr with code length only (no source preview, to avoid leaking secrets in logs).
 - Apex code is limited to 100,000 characters per execution.
 
 ### Trust Boundaries

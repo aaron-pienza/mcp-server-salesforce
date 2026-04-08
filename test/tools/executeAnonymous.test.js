@@ -20,7 +20,7 @@ test('executeAnonymous — success', async () => {
       query: async () => ({ totalSize: 0, records: [] }),
       sobject: () => ({ create: async () => ({}), update: async () => ({}), delete: async () => ({}) }),
     },
-    identity: async () => ({ user_id: '005current' }),
+    identity: async () => ({ user_id: '005000000000ABC' }),
     query: async (soql) => {
       capturedSoql = soql;
       return { totalSize: 0, records: [] };
@@ -29,7 +29,7 @@ test('executeAnonymous — success', async () => {
   const result = await handleExecuteAnonymous(conn, { apexCode: 'System.debug("test");' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('Success'));
-  assert.ok(capturedSoql.includes("WHERE LogUserId = '005current'"));
+  assert.ok(capturedSoql.includes("WHERE LogUserId = '005000000000ABC'"));
 });
 
 test('executeAnonymous — compilation failure', async () => {

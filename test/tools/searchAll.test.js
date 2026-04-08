@@ -99,6 +99,25 @@ test('searchAll — API error returns isError', async () => {
   assert.equal(result.isError, true);
 });
 
+test('searchAll — WITH clause value containing RETURNING is rejected', async () => {
+  let searchCalled = false;
+  const conn = createMockConnection({
+    search: async () => {
+      searchCalled = true;
+      return { searchRecords: [] };
+    },
+  });
+  const result = await handleSearchAll(conn, {
+    searchTerm: 'Test',
+    objects: [{ name: 'Account', fields: ['Id', 'Name'] }],
+    withClauses: [{ type: 'NETWORK', value: 'ALL NETWORKS RETURNING Account' }],
+  });
+  assert.equal(result.isError, true);
+  assert.equal(searchCalled, false);
+  assert.ok(result.content[0].text.toLowerCase().includes('returning') ||
+    result.content[0].text.includes('reserved'));
+});
+
 test('searchAll — updateable/viewable flags return clear error', async () => {
   let searchCalled = false;
   const conn = createMockConnection({

@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import type { Connection } from "jsforce";
 import { logApexExecution } from "../utils/logging.js";
+import { isValidSalesforceId } from "../utils/sanitize.js";
 
 export const EXECUTE_ANONYMOUS: Tool = {
   name: "salesforce_execute_anonymous",
@@ -59,8 +59,8 @@ async function resolveCurrentUserId(conn: any): Promise<string | undefined> {
   if (directId) return directId;
 
   if (typeof conn?.identity === 'function') {
-    const identity = await conn.identity();
-    return identity?.user_id || identity?.id;
+    const identity = (await conn.identity()) as { user_id?: string; id?: string };
+    return identity.user_id || identity.id;
   }
 
   return undefined;
@@ -121,7 +121,7 @@ export async function handleExecuteAnonymous(conn: any, args: ExecuteAnonymousAr
     if (result.compiled) {
       try {
         const currentUserId = await resolveCurrentUserId(conn);
-        if (!currentUserId) {
+        if (!currentUserId || !isValidSalesforceId(currentUserId)) {
           responseText += `\n**Debug Log:** Unable to determine the current Salesforce user, so logs were not retrieved safely.`;
           return {
             content: [{
@@ -132,7 +132,7 @@ export async function handleExecuteAnonymous(conn: any, args: ExecuteAnonymousAr
           };
         }
 
-        // Query for the most recent debug log
+        // Query for the most recent debug log (user id validated as Salesforce Id — no string interpolation of untrusted input)
         const logs = await conn.query(`
           SELECT Id, LogUserId, Operation, Application, Status, LogLength, LastModifiedDate, Request
           FROM ApexLog 
