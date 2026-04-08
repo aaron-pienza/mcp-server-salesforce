@@ -101,6 +101,21 @@ export interface ManageDebugLogsArgs {
   offset?: number;
 }
 
+function ensureSaveResultSuccess(
+  result: { success?: boolean; id?: string; errors?: Array<{ message?: string }> | string[] | string } | undefined,
+  action: string
+) {
+  if (result?.success !== false) {
+    return;
+  }
+
+  const errors = Array.isArray(result.errors)
+    ? result.errors.map((error: any) => typeof error === 'string' ? error : error?.message || JSON.stringify(error))
+    : result?.errors ? [String(result.errors)] : [];
+
+  throw new Error(`${action} failed${errors.length > 0 ? `: ${errors.join(', ')}` : ''}`);
+}
+
 /**
  * Handles managing debug logs for Salesforce users
  * @param conn Active Salesforce connection
@@ -223,12 +238,13 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
           traceFlagId = existingTraceFlag.records[0].Id;
           debugLevelId = existingTraceFlag.records[0].DebugLevelId;
           
-          await conn.tooling.sobject('TraceFlag').update({
+          const updateResult = await conn.tooling.sobject('TraceFlag').update({
             Id: traceFlagId,
             LogType: 'USER_DEBUG',
             StartDate: new Date().toISOString(),
             ExpirationDate: expirationDate.toISOString()
           });
+          ensureSaveResultSuccess(updateResult, 'Updating trace flag');
           operation = 'updated';
         } else {
           // Create a new debug level with the correct field names
@@ -244,6 +260,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
             Visualforce: args.logLevel,
             Workflow: args.logLevel
           });
+          ensureSaveResultSuccess(debugLevelResult, 'Creating debug level');
           
           debugLevelId = debugLevelResult.id;
           
@@ -255,6 +272,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
             StartDate: new Date().toISOString(),
             ExpirationDate: expirationDate.toISOString()
           });
+          ensureSaveResultSuccess(traceFlagResult, 'Creating trace flag');
           
           traceFlagId = traceFlagResult.id;
           operation = 'enabled';
@@ -294,6 +312,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
               conn.tooling.sobject('TraceFlag').delete(id)
             )
           );
+          deleteResults.forEach((result: any) => ensureSaveResultSuccess(result, 'Deleting trace flag'));
           
           return {
             content: [{ 
@@ -319,6 +338,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
                 })
               )
             );
+            updateResults.forEach((result: any) => ensureSaveResultSuccess(result, 'Updating trace flag expiration'));
             
             return {
               content: [{ 
@@ -345,13 +365,14 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
               SELECT Id, LogUserId, Operation, Application, Status, LogLength, LastModifiedDate, Request
               FROM ApexLog 
               WHERE Id = '${escapeSoqlValue(args.logId)}'
+              AND LogUserId = '${escapeSoqlValue(user.Id)}'
             `);
             
             if (logQuery.records.length === 0) {
               return {
                 content: [{ 
                   type: "text", 
-                  text: `No log found with ID '${args.logId}'.` 
+                  text: `No log found with ID '${args.logId}' for user '${args.username}'.` 
                 }]
               };
             }

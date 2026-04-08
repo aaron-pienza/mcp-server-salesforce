@@ -15,22 +15,25 @@ const OAUTH_TIMEOUT = 30000; // 30 seconds for OAuth token request
  * Executes the Salesforce CLI command to get org information
  * @returns Parsed response from sf org display --json command
  */
-async function getSalesforceOrgInfo(): Promise<SalesforceCLIResponse> {
+export async function getSalesforceOrgInfo(
+  execSfOrgDisplay: () => Promise<{ stdout: string; stderr: string }> = () =>
+    execFileAsync('sf', ['org', 'display', '--json'])
+): Promise<SalesforceCLIResponse> {
   try {
     console.error(`Executing Salesforce CLI: sf org display --json`);
 
     let stdout = '';
-    let stderr = '';
     let execError: Error | null = null;
     try {
       // Use execFile instead of exec to avoid shell injection surface
-      const result = await execFileAsync('sf', ['org', 'display', '--json']);
+      const result = await execSfOrgDisplay();
       stdout = result.stdout;
-      stderr = result.stderr;
     } catch (err: any) {
       execError = err;
+      if (err?.code === 'ENOENT' || err?.message?.includes('command not found') || err?.message?.includes('not recognized')) {
+        throw err;
+      }
       stdout = 'stdout' in err ? err.stdout || '' : '';
-      stderr = 'stderr' in err ? err.stderr || '' : '';
     }
 
     // Parse JSON — log redacted version only

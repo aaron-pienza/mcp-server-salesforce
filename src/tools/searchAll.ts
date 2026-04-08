@@ -37,7 +37,7 @@ Notes:
 - Use * and ? for wildcards in search terms
 - Each object can have its own WHERE, ORDER BY, and LIMIT clauses
 - Support for WITH clauses: DATA CATEGORY, DIVISION, METADATA, NETWORK, PRICEBOOKID, SNIPPET, SECURITY_ENFORCED
-- "updateable" and "viewable" options control record access filtering`,
+- The updateable/viewable filters are reserved for future support and currently return a clear error if requested`,
   inputSchema: {
     type: "object",
     properties: {
@@ -114,12 +114,12 @@ Notes:
       },
       updateable: {
         type: "boolean",
-        description: "Return only updateable records",
+        description: "Reserved for future support. If set, the tool returns an error instead of generating invalid SOSL.",
         optional: true
       },
       viewable: {
         type: "boolean",
-        description: "Return only viewable records",
+        description: "Reserved for future support. If set, the tool returns an error instead of generating invalid SOSL.",
         optional: true
       }
     },
@@ -177,6 +177,16 @@ export async function handleSearchAll(conn: any, args: SearchAllArgs) {
       throw new Error('Search term cannot be empty');
     }
 
+    if (updateable || viewable) {
+      return {
+        content: [{
+          type: "text",
+          text: 'The updateable/viewable filters are not currently supported by this tool. Remove those flags and retry the SOSL search.'
+        }],
+        isError: true,
+      };
+    }
+
     // Validate object names
     for (const obj of objects) {
       const objValidation = validateIdentifier(obj.name);
@@ -204,18 +214,10 @@ export async function handleSearchAll(conn: any, args: SearchAllArgs) {
       ? withClauses.map(buildWithClause).join(' ')
       : '';
 
-    // Add updateable/viewable flags if specified
-    const accessFlags = [];
-    if (updateable) accessFlags.push('UPDATEABLE');
-    if (viewable) accessFlags.push('VIEWABLE');
-    const accessClause = accessFlags.length > 0 ? 
-      ` RETURNING ${accessFlags.join(',')}` : '';
-
     // Construct complete SOSL query
     const soslQuery = `FIND {${escapeSoslSearchTerm(searchTerm)}} IN ${searchIn}
       ${withClausesStr}
-      RETURNING ${returningClause}
-      ${accessClause}`.trim();
+      RETURNING ${returningClause}`.trim();
 
     // Execute search
     const result = await conn.search(soslQuery);

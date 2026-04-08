@@ -98,3 +98,21 @@ test('searchAll — API error returns isError', async () => {
   });
   assert.equal(result.isError, true);
 });
+
+test('searchAll — updateable/viewable flags return clear error', async () => {
+  let searchCalled = false;
+  const conn = createMockConnection({
+    search: async () => {
+      searchCalled = true;
+      return { searchRecords: [] };
+    },
+  });
+  const result = await handleSearchAll(conn, {
+    searchTerm: 'Test',
+    updateable: true,
+    objects: [{ name: 'Account', fields: ['Id'] }],
+  });
+  assert.equal(result.isError, true);
+  assert.equal(searchCalled, false);
+  assert.ok(result.content[0].text.includes('not currently supported'));
+});

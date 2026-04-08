@@ -4,6 +4,7 @@ import { handleExecuteAnonymous } from '../../dist/tools/executeAnonymous.js';
 import { createMockConnection } from '../helpers/mockConnection.js';
 
 test('executeAnonymous — success', async () => {
+  let capturedSoql = '';
   const conn = createMockConnection({
     tooling: {
       executeAnonymous: async () => ({
@@ -19,11 +20,16 @@ test('executeAnonymous — success', async () => {
       query: async () => ({ totalSize: 0, records: [] }),
       sobject: () => ({ create: async () => ({}), update: async () => ({}), delete: async () => ({}) }),
     },
-    query: async () => ({ totalSize: 0, records: [] }),
+    identity: async () => ({ user_id: '005current' }),
+    query: async (soql) => {
+      capturedSoql = soql;
+      return { totalSize: 0, records: [] };
+    },
   });
   const result = await handleExecuteAnonymous(conn, { apexCode: 'System.debug("test");' });
   assert.equal(result.isError, false);
   assert.ok(result.content[0].text.includes('Success'));
+  assert.ok(capturedSoql.includes("WHERE LogUserId = '005current'"));
 });
 
 test('executeAnonymous — compilation failure', async () => {
@@ -86,4 +92,29 @@ test('executeAnonymous — API error', async () => {
   const result = await handleExecuteAnonymous(conn, { apexCode: 'System.debug("x");' });
   assert.equal(result.isError, true);
   assert.ok(result.content[0].text.includes('INVALID_SESSION'));
+});
+
+test('executeAnonymous — skips debug log retrieval when current user cannot be resolved', async () => {
+  const conn = createMockConnection({
+    tooling: {
+      executeAnonymous: async () => ({
+        compiled: true,
+        compileProblem: null,
+        success: true,
+        exceptionMessage: null,
+        exceptionStackTrace: null,
+        line: -1,
+        column: -1,
+      }),
+      request: async () => '',
+      query: async () => ({ totalSize: 0, records: [] }),
+      sobject: () => ({ create: async () => ({}), update: async () => ({}), delete: async () => ({}) }),
+    },
+    query: async () => {
+      throw new Error('should not query logs without user identity');
+    },
+  });
+  const result = await handleExecuteAnonymous(conn, { apexCode: 'System.debug("test");' });
+  assert.equal(result.isError, false);
+  assert.ok(result.content[0].text.includes('logs were not retrieved safely'));
 });

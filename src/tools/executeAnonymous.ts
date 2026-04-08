@@ -54,6 +54,18 @@ export interface ExecuteAnonymousArgs {
   logLevel?: 'NONE' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'FINE' | 'FINER' | 'FINEST';
 }
 
+async function resolveCurrentUserId(conn: any): Promise<string | undefined> {
+  const directId = conn?.userInfo?.id || conn?.userInfo?.user_id;
+  if (directId) return directId;
+
+  if (typeof conn?.identity === 'function') {
+    const identity = await conn.identity();
+    return identity?.user_id || identity?.id;
+  }
+
+  return undefined;
+}
+
 /**
  * Handles executing anonymous Apex code in Salesforce
  * @param conn Active Salesforce connection
@@ -108,10 +120,23 @@ export async function handleExecuteAnonymous(conn: any, args: ExecuteAnonymousAr
     // Get debug logs if available
     if (result.compiled) {
       try {
+        const currentUserId = await resolveCurrentUserId(conn);
+        if (!currentUserId) {
+          responseText += `\n**Debug Log:** Unable to determine the current Salesforce user, so logs were not retrieved safely.`;
+          return {
+            content: [{
+              type: "text",
+              text: responseText
+            }],
+            isError: !result.success,
+          };
+        }
+
         // Query for the most recent debug log
         const logs = await conn.query(`
           SELECT Id, LogUserId, Operation, Application, Status, LogLength, LastModifiedDate, Request
           FROM ApexLog 
+          WHERE LogUserId = '${currentUserId}'
           ORDER BY LastModifiedDate DESC 
           LIMIT 1
         `);

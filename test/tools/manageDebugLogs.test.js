@@ -94,9 +94,11 @@ test('manageDebugLogs — retrieve with no logs', async () => {
 });
 
 test('manageDebugLogs — retrieve specific log by ID', async () => {
+  let capturedSoql = '';
   const conn = userLookupConn({
     tooling: {
       query: async (soql) => {
+        capturedSoql = soql;
         if (soql.includes('FROM ApexLog')) {
           return {
             totalSize: 1,
@@ -121,6 +123,7 @@ test('manageDebugLogs — retrieve specific log by ID', async () => {
   });
   assert.ok(!result.isError);
   assert.ok(result.content[0].text.includes('DEBUG LOG BODY CONTENT'));
+  assert.ok(capturedSoql.includes("AND LogUserId = '005xx1'"));
 });
 
 test('manageDebugLogs — API error returns isError', async () => {
@@ -132,4 +135,52 @@ test('manageDebugLogs — API error returns isError', async () => {
     username: 'test@example.com',
   });
   assert.equal(result.isError, true);
+});
+
+test('manageDebugLogs — failed trace flag save result returns isError', async () => {
+  const conn = userLookupConn({
+    tooling: {
+      query: async () => ({ totalSize: 0, records: [] }),
+      sobject: (name) => ({
+        create: async () => {
+          if (name === 'DebugLevel') {
+            return { id: '7dlxx1', success: true, errors: [] };
+          }
+          return { success: false, errors: [{ message: 'FIELD_INTEGRITY_EXCEPTION' }] };
+        },
+        update: async () => ({ success: true, errors: [] }),
+        delete: async () => ({ success: true, errors: [] }),
+      }),
+    },
+  });
+  const result = await handleManageDebugLogs(conn, {
+    operation: 'enable',
+    username: 'test@example.com',
+    logLevel: 'DEBUG',
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('FIELD_INTEGRITY_EXCEPTION'));
+});
+
+test('manageDebugLogs — retrieve specific log rejects log owned by another user', async () => {
+  const conn = userLookupConn({
+    tooling: {
+      query: async (soql) => {
+        if (soql.includes('FROM ApexLog')) {
+          return { totalSize: 0, records: [] };
+        }
+        return { totalSize: 0, records: [] };
+      },
+      sobject: () => ({ create: async () => ({}), update: async () => ({}), delete: async () => ({}) }),
+      request: async () => 'SHOULD NOT BE RETURNED',
+    },
+  });
+  const result = await handleManageDebugLogs(conn, {
+    operation: 'retrieve',
+    username: 'test@example.com',
+    logId: '07Lother',
+    includeBody: true,
+  });
+  assert.equal(result.isError, undefined);
+  assert.ok(result.content[0].text.includes("No log found with ID '07Lother' for user 'test@example.com'"));
 });
