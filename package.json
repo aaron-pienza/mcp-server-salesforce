@@ -1,6 +1,6 @@
 {
     "name": "@aaron-pienza/mcp-server-salesforce",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "MCP server for Salesforce — query, analytics, Apex, REST API passthrough, and more.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -36,6 +36,9 @@
         "url": "https://github.com/aaron-pienza/mcp-server-salesforce.git"
     },
     "homepage": "https://github.com/aaron-pienza/mcp-server-salesforce#readme",
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "publishConfig": {
         "access": "public"
     },
