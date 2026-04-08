@@ -5,10 +5,6 @@
 
 An MCP (Model Context Protocol) server implementation that integrates Claude with Salesforce, enabling natural language interactions with your Salesforce data and metadata. This server allows Claude to query, modify, and manage your Salesforce objects and records using everyday language.
 
-<a href="https://glama.ai/mcp/servers/kqeniawbr6">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/kqeniawbr6/badge" alt="Salesforce Server MCP server" />
-</a>
-
 ## Features
 
 * **Object and Field Management**: Create and modify custom objects and fields using natural language
@@ -29,19 +25,8 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 ### Global Installation (npm)
 
 ```bash
-npm install -g @tsmztech/mcp-server-salesforce
+npm install -g @aaron-pienza/mcp-server-salesforce
 ```
-
-### Claude Desktop Quick Installation
-
-For easy setup with Claude Desktop, download the pre-configured extension:
-
-1. Download [`salesforce-mcp-extension.dxt`](./claude-desktop/salesforce-mcp-extension.dxt) from the `claude-desktop/` folder
-2. Open Claude Desktop → Settings → Extensions
-3. Drag the `.dxt` file into the Extensions window
-4. Configure your Salesforce credentials when prompted
-
-For manual Claude Desktop configuration, see [Usage with Claude Desktop](#usage-with-claude-desktop) below.
 
 ## Tools
 
@@ -209,7 +194,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "salesforce": {
       "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
+      "args": ["-y", "@aaron-pienza/mcp-server-salesforce"],
       "env": {
         "SALESFORCE_CONNECTION_TYPE": "Salesforce_CLI"
       }
@@ -224,7 +209,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "salesforce": {
       "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
+      "args": ["-y", "@aaron-pienza/mcp-server-salesforce"],
       "env": {
         "SALESFORCE_CONNECTION_TYPE": "User_Password",
         "SALESFORCE_USERNAME": "your_username",
@@ -243,7 +228,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "salesforce": {
       "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
+      "args": ["-y", "@aaron-pienza/mcp-server-salesforce"],
       "env": {
         "SALESFORCE_CONNECTION_TYPE": "OAuth_2.0_Client_Credentials",
         "SALESFORCE_CLIENT_ID": "your_client_id",
@@ -377,7 +362,7 @@ For full details, see [SECURITY.md](SECURITY.md).
 ### Building from source
 ```bash
 # Clone the repository
-git clone https://github.com/tsmztech/mcp-server-salesforce.git
+git clone https://github.com/aaron-pienza/mcp-server-salesforce.git
 
 # Navigate to directory
 cd mcp-server-salesforce
@@ -396,4 +381,4 @@ Contributions are welcome! Feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Issues and Support
-If you encounter any issues or need support, please file an issue on the [GitHub repository](https://github.com/tsmztech/mcp-server-salesforce/issues).
+If you encounter any issues or need support, please file an issue on the [GitHub repository](https://github.com/aaron-pienza/mcp-server-salesforce/issues).
