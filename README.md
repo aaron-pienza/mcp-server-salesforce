@@ -1,6 +1,5 @@
 # Salesforce MCP Server
 [![npm version](https://img.shields.io/npm/v/@aaron-pienza/mcp-server-salesforce)](https://www.npmjs.com/package/@aaron-pienza/mcp-server-salesforce)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/aaron-pienza/mcp-server-salesforce/badge)](https://securityscorecards.dev/viewer/?uri=github.com/aaron-pienza/mcp-server-salesforce)
 
 
 An MCP (Model Context Protocol) server implementation that integrates Claude with Salesforce, enabling natural language interactions with your Salesforce data and metadata. This server allows Claude to query, modify, and manage your Salesforce objects and records using everyday language.
