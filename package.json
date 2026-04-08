@@ -1,12 +1,12 @@
 {
-    "name": "@tsmztech/mcp-server-salesforce",
-    "version": "0.0.6",
-    "description": "A Salesforce connector MCP Server.",
+    "name": "@aaron-pienza/mcp-server-salesforce",
+    "version": "1.0.0",
+    "description": "MCP server for Salesforce — query, analytics, Apex, REST API passthrough, and more.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "type": "module",
     "bin": {
-        "salesforce-connector": "dist/index.js"
+        "mcp-server-salesforce": "dist/index.js"
     },
     "files": [
         "dist"
@@ -21,10 +21,24 @@
         "mcp",
         "salesforce",
         "claude",
-        "ai"
+        "ai",
+        "model-context-protocol",
+        "jsforce",
+        "soql",
+        "apex",
+        "reports",
+        "dashboards"
     ],
-    "author": "tsmztech",
+    "author": "Aaron Pienza <aaron@inflection.io>",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/aaron-pienza/mcp-server-salesforce.git"
+    },
+    "homepage": "https://github.com/aaron-pienza/mcp-server-salesforce#readme",
+    "publishConfig": {
+        "access": "public"
+    },
     "dependencies": {
         "@modelcontextprotocol/sdk": "1.26.0",
         "dotenv": "17.3.1",
