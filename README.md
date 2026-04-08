@@ -1,4 +1,5 @@
 # Salesforce MCP Server
+[![npm version](https://img.shields.io/npm/v/@aaron-pienza/mcp-server-salesforce)](https://www.npmjs.com/package/@aaron-pienza/mcp-server-salesforce)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tsmztech/mcp-server-salesforce/badge)](https://securityscorecards.dev/viewer/?uri=github.com/tsmztech/mcp-server-salesforce)
 
 
