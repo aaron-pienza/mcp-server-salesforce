@@ -20,7 +20,7 @@ test('readApex — read specific class returns body', async () => {
     }),
   });
   const result = await handleReadApex(conn, { className: 'MyController' });
-  assert.equal(result.isError, undefined);
+  assert.ok(result.isError !== true);
   assert.ok(result.content[0].text.includes('public class MyController'));
 });
 

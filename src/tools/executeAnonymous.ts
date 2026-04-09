@@ -79,9 +79,9 @@ export async function handleExecuteAnonymous(conn: any, args: ExecuteAnonymousAr
       throw new Error('apexCode is required and cannot be empty');
     }
 
-    if (args.apexCode.length > 100000) {
+    if (args.apexCode.length > 32000) {
       return {
-        content: [{ type: "text", text: "Apex code exceeds maximum allowed length of 100,000 characters." }],
+        content: [{ type: "text", text: "Apex code exceeds maximum allowed length of 32,000 characters." }],
         isError: true,
       };
     }
@@ -147,7 +147,7 @@ export async function handleExecuteAnonymous(conn: any, args: ExecuteAnonymousAr
           // Retrieve the log body
           const logBody = await conn.tooling.request({
             method: 'GET',
-            url: `${conn.instanceUrl}/services/data/v58.0/tooling/sobjects/ApexLog/${logId}/Body`
+            url: `${conn.instanceUrl}/services/data/v${conn.version || '62.0'}/tooling/sobjects/ApexLog/${logId}/Body`
           });
           
           responseText += `\n**Debug Log:**\n\`\`\`\n${logBody}\n\`\`\``;

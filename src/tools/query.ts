@@ -190,19 +190,8 @@ export async function handleQueryRecords(conn: any, args: QueryArgs) {
       soql += ` OFFSET ${offset}`;
     }
 
-    // Get total count for pagination info
-    let totalSize: number;
-    let countSoql = `SELECT COUNT() FROM ${objectName}`;
-    if (whereClause) countSoql += ` WHERE ${whereClause}`;
-    try {
-      const countResult = await conn.query(countSoql);
-      totalSize = countResult.totalSize;
-    } catch {
-      // COUNT() may fail on some objects; fall back to unknown total
-      totalSize = -1;
-    }
-
-    const result = await conn.query(soql, { autoFetch: false });
+    const result = await conn.query(soql, { autoFetch: true, maxFetch: limit });
+    const totalSize = result.totalSize;
 
     // Format the output
     const recordStartIndex = offset;
@@ -221,7 +210,7 @@ export async function handleQueryRecords(conn: any, args: QueryArgs) {
     }).join('\n\n');
 
     // Use totalSize from count query, or fall back to result.totalSize
-    const effectiveTotal = totalSize >= 0 ? totalSize : result.totalSize;
+    const effectiveTotal = totalSize;
     const returned = result.records.length;
     const hasMore = (offset + returned) < effectiveTotal;
 

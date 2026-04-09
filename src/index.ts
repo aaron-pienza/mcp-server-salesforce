@@ -10,7 +10,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import * as dotenv from "dotenv";
 
-import { createSalesforceConnection } from "./utils/connection.js";
+import { createSalesforceConnection, clearConnectionCache } from "./utils/connection.js";
 import {
   assertEnum,
   assertOptionalBoolean,
@@ -54,6 +54,13 @@ import { RUN_ANALYTICS, handleRunAnalytics, RunAnalyticsArgs } from "./tools/run
 import { REFRESH_DASHBOARD, handleRefreshDashboard, RefreshDashboardArgs } from "./tools/refreshDashboard.js";
 import { REST_API, handleRestApi, RestApiArgs } from "./tools/restApi.js";
 import { RESOURCES, getResourceContent } from "./resources/index.js";
+import { validateIdentifier, validateSafeSoqlFragment } from "./utils/sanitize.js";
+
+const FIELD_TYPES = [
+  'Checkbox', 'Currency', 'Date', 'DateTime', 'Email', 'Number', 'Percent',
+  'Phone', 'Picklist', 'MultiselectPicklist', 'Text', 'TextArea', 'LongTextArea',
+  'Html', 'Url', 'Lookup', 'MasterDetail',
+] as const;
 
 // Load environment variables — quiet: true suppresses dotenv 17.x stderr logging
 // MCP servers require stdout to contain ONLY JSON-RPC messages
@@ -136,11 +143,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "salesforce_query_records": {
         const a = assertPlainObject(args, 'arguments');
+        const whereClause = assertOptionalString(a.whereClause, 'whereClause');
+        const orderBy = assertOptionalString(a.orderBy, 'orderBy');
+        if (whereClause) { const v = validateSafeSoqlFragment(whereClause); if (!v.valid) throw new Error(`Invalid whereClause: ${v.error}`); }
+        if (orderBy) { const v = validateSafeSoqlFragment(orderBy); if (!v.valid) throw new Error(`Invalid orderBy: ${v.error}`); }
         const validatedArgs: QueryArgs = {
           objectName: assertString(a.objectName, 'objectName'),
           fields: assertStringArray(a.fields, 'fields'),
-          whereClause: assertOptionalString(a.whereClause, 'whereClause'),
-          orderBy: assertOptionalString(a.orderBy, 'orderBy'),
+          whereClause,
+          orderBy,
           limit: assertOptionalNumber(a.limit, 'limit'),
           offset: assertOptionalNumber(a.offset, 'offset'),
         };
@@ -149,13 +160,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "salesforce_aggregate_query": {
         const a = assertPlainObject(args, 'arguments');
+        const whereClause = assertOptionalString(a.whereClause, 'whereClause');
+        const havingClause = assertOptionalString(a.havingClause, 'havingClause');
+        const orderBy = assertOptionalString(a.orderBy, 'orderBy');
+        if (whereClause) { const v = validateSafeSoqlFragment(whereClause); if (!v.valid) throw new Error(`Invalid whereClause: ${v.error}`); }
+        if (havingClause) { const v = validateSafeSoqlFragment(havingClause); if (!v.valid) throw new Error(`Invalid havingClause: ${v.error}`); }
+        if (orderBy) { const v = validateSafeSoqlFragment(orderBy); if (!v.valid) throw new Error(`Invalid orderBy: ${v.error}`); }
         const validatedArgs: AggregateQueryArgs = {
           objectName: assertString(a.objectName, 'objectName'),
           selectFields: assertStringArray(a.selectFields, 'selectFields'),
           groupByFields: assertStringArray(a.groupByFields, 'groupByFields'),
-          whereClause: assertOptionalString(a.whereClause, 'whereClause'),
-          havingClause: assertOptionalString(a.havingClause, 'havingClause'),
-          orderBy: assertOptionalString(a.orderBy, 'orderBy'),
+          whereClause,
+          havingClause,
+          orderBy,
           limit: assertOptionalNumber(a.limit, 'limit'),
         };
         return await handleAggregateQuery(conn, validatedArgs);
@@ -163,11 +180,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "salesforce_dml_records": {
         const a = assertPlainObject(args, 'arguments');
+        const operation = assertEnum(a.operation, 'operation', ['insert', 'update', 'delete', 'upsert'] as const);
+        const externalIdField = assertOptionalString(a.externalIdField, 'externalIdField');
+        if (operation === 'upsert' && externalIdField) {
+          const idCheck = validateIdentifier(externalIdField);
+          if (!idCheck.valid) throw new Error(`Invalid externalIdField: ${idCheck.error}`);
+        }
         const validatedArgs: DMLArgs = {
-          operation: assertEnum(a.operation, 'operation', ['insert', 'update', 'delete', 'upsert'] as const),
+          operation,
           objectName: assertString(a.objectName, 'objectName'),
           records: assertRecordArray(a.records, 'records'),
-          externalIdField: assertOptionalString(a.externalIdField, 'externalIdField'),
+          externalIdField,
         };
         return await handleDMLRecords(conn, validatedArgs);
       }
@@ -197,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           objectName: assertString(a.objectName, 'objectName'),
           fieldName: assertString(a.fieldName, 'fieldName'),
           label: assertOptionalString(a.label, 'label'),
-          type: assertOptionalString(a.type, 'type'),
+          type: assertOptionalEnum(a.type, 'type', FIELD_TYPES),
           required: assertOptionalBoolean(a.required, 'required'),
           unique: assertOptionalBoolean(a.unique, 'unique'),
           externalId: assertOptionalBoolean(a.externalId, 'externalId'),
@@ -334,12 +357,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "salesforce_run_analytics": {
         const a = assertPlainObject(args, 'arguments');
+        const booleanFilter = assertOptionalString(a.booleanFilter, 'booleanFilter');
+        if (booleanFilter) { const v = validateSafeSoqlFragment(booleanFilter); if (!v.valid) throw new Error(`Invalid booleanFilter: ${v.error}`); }
         const validatedArgs: RunAnalyticsArgs = {
           type: assertEnum(a.type, 'type', ['report', 'dashboard'] as const),
           resourceId: assertString(a.resourceId, 'resourceId'),
           includeDetails: assertOptionalBoolean(a.includeDetails, 'includeDetails'),
           filters: assertOptionalReportFilters(a.filters, 'filters'),
-          booleanFilter: assertOptionalString(a.booleanFilter, 'booleanFilter'),
+          booleanFilter,
           standardDateFilter: assertOptionalStandardDateFilter(a.standardDateFilter, 'standardDateFilter'),
           topRows: assertOptionalTopRows(a.topRows, 'topRows'),
         };
@@ -375,10 +400,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
     }
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (/INVALID_SESSION_ID|INVALID_SESSION|Session expired/.test(errMsg)) {
+      clearConnectionCache();
+    }
     return {
       content: [{
         type: "text",
-        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        text: `Error: ${errMsg}`,
       }],
       isError: true,
     };

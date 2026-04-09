@@ -26,8 +26,14 @@ export function escapeSoslSearchTerm(value: string): string {
  * Accepts: Account, My_Object__c, ns__Field__r, Custom__e
  */
 export function validateIdentifier(name: string): { valid: boolean; error?: string } {
+  if (name.length > 80) {
+    return {
+      valid: false,
+      error: `Identifier "${name}" exceeds maximum length of 80 characters.`
+    };
+  }
   // Allow standard Salesforce identifier pattern with optional namespace prefix and suffix
-  const pattern = /^[a-zA-Z][a-zA-Z0-9_]{0,39}(__[a-z])?$/;
+  const pattern = /^[a-zA-Z][a-zA-Z0-9_]{0,38}(__[a-zA-Z0-9]+)?$/;
   if (!pattern.test(name)) {
     return {
       valid: false,

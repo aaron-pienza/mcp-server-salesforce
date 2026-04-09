@@ -181,6 +181,6 @@ test('manageDebugLogs — retrieve specific log rejects log owned by another use
     logId: '07Lother',
     includeBody: true,
   });
-  assert.equal(result.isError, undefined);
+  assert.ok(result.isError !== true);
   assert.ok(result.content[0].text.includes("No log found with ID '07Lother' for user 'test@example.com'"));
 });

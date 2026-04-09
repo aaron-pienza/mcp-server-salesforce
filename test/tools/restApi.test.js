@@ -71,6 +71,64 @@ test('restApi — API error returns isError with details', async () => {
   assert.ok(result.content[0].text.includes('NOT_FOUND'));
 });
 
+test('restApi — rawPath with //malicious-domain.com returns error', async () => {
+  const conn = createMockConnection({ request: async () => ({}), version: '59.0' });
+  const result = await handleRestApi(conn, {
+    method: 'GET',
+    endpoint: '//malicious-domain.com',
+    rawPath: true,
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('protocol-relative'));
+});
+
+test('restApi — rawPath with https://evil.com/api returns error', async () => {
+  const conn = createMockConnection({ request: async () => ({}), version: '59.0' });
+  const result = await handleRestApi(conn, {
+    method: 'GET',
+    endpoint: 'https://evil.com/api',
+    rawPath: true,
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('absolute URLs are not allowed'));
+});
+
+test('restApi — rawPath with /services/apexrest/MyEndpoint succeeds', async () => {
+  const requestSpy = createSpy(async () => ({ status: 'ok' }));
+  const conn = createMockConnection({ request: requestSpy, version: '59.0' });
+  const result = await handleRestApi(conn, {
+    method: 'GET',
+    endpoint: '/services/apexrest/MyEndpoint',
+    rawPath: true,
+  });
+  assert.equal(result.isError, false);
+  assert.ok(requestSpy.calls[0].args[0].url === '/services/apexrest/MyEndpoint');
+});
+
+test('restApi — rawPath without /services/ prefix returns error', async () => {
+  const conn = createMockConnection({ request: async () => ({}), version: '59.0' });
+  const result = await handleRestApi(conn, {
+    method: 'GET',
+    endpoint: '/api/something',
+    rawPath: true,
+  });
+  assert.equal(result.isError, true);
+  assert.ok(result.content[0].text.includes('must start with /services/'));
+});
+
+test('restApi — non-rawPath with version override constructs correct URL', async () => {
+  const requestSpy = createSpy(async () => ({}));
+  const conn = createMockConnection({ request: requestSpy, version: '55.0' });
+  await handleRestApi(conn, {
+    method: 'GET',
+    endpoint: '/sobjects/Account',
+    apiVersion: '63.0',
+  });
+  const url = requestSpy.calls[0].args[0].url;
+  assert.ok(url.includes('/services/data/v63.0/sobjects/Account'));
+  assert.ok(!url.includes('v55.0'));
+});
+
 test('restApi — large response is truncated', async () => {
   const largeData = 'x'.repeat(60000);
   const conn = createMockConnection({ request: async () => largeData, version: '59.0' });

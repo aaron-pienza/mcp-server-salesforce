@@ -96,7 +96,21 @@ export async function handleRestApi(conn: any, args: RestApiArgs) {
     // Build the full URL path
     let url: string;
     if (rawPath) {
-      url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      // Block protocol-relative URLs and absolute URLs with schemes
+      if (/^\/\//.test(endpoint) || /^[a-zA-Z]+:/.test(endpoint)) {
+        return {
+          content: [{ type: "text", text: "Invalid rawPath endpoint: protocol-relative and absolute URLs are not allowed. Use a path starting with /services/." }],
+          isError: true,
+        };
+      }
+      const normalizedPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      if (!normalizedPath.startsWith('/services/')) {
+        return {
+          content: [{ type: "text", text: "Invalid rawPath endpoint: path must start with /services/ (e.g., /services/apexrest/MyEndpoint)." }],
+          isError: true,
+        };
+      }
+      url = normalizedPath;
     } else {
       const version = apiVersion || conn.version || '59.0';
       const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;

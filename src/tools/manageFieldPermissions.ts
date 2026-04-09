@@ -73,15 +73,15 @@ export async function handleManageFieldPermissions(conn: any, args: ManageFieldP
 
   try {
     // Ensure field name has __c suffix if it's a custom field and doesn't already have it
-    const fieldApiName = fieldName.endsWith('__c') || fieldName.includes('.') ? fieldName : `${fieldName}__c`;
+    const needsSuffix = !fieldName.includes('.') && !fieldName.includes('__');
+    const fieldApiName = needsSuffix ? `${fieldName}__c` : fieldName;
     const fullFieldName = `${objectName}.${fieldApiName}`;
 
     if (operation === 'view') {
       // Query existing field permissions
       const permissionsQuery = `
-        SELECT Id, Parent.ProfileId, Parent.Profile.Name, Parent.IsOwnedByProfile,
-               Parent.PermissionSetId, Parent.PermissionSet.Name,
-               Field, PermissionsRead, PermissionsEdit
+        SELECT Id, ParentId, Parent.IsOwnedByProfile, Parent.Profile.Name,
+               Parent.Label, Field, PermissionsRead, PermissionsEdit
         FROM FieldPermissions
         WHERE SobjectType = '${escapeSoqlValue(objectName)}'
         AND Field = '${escapeSoqlValue(fullFieldName)}'
@@ -103,9 +103,7 @@ export async function handleManageFieldPermissions(conn: any, args: ManageFieldP
       let responseText = `Field permissions for ${fullFieldName}:\n\n`;
       
       result.records.forEach((perm: any) => {
-        const name = perm.Parent.IsOwnedByProfile 
-          ? perm.Parent.Profile?.Name 
-          : perm.Parent.PermissionSet?.Name;
+        const name = perm.Parent.IsOwnedByProfile ? (perm.Parent.Profile?.Name || 'Unknown Profile') : (perm.Parent?.Label || 'Unknown Permission Set');
         const type = perm.Parent.IsOwnedByProfile ? 'Profile' : 'Permission Set';
         
         responseText += `${type}: ${name}\n`;
@@ -273,7 +271,7 @@ export async function handleManageFieldPermissions(conn: any, args: ManageFieldP
         type: "text",
         text: responseText
       }],
-      isError: false,
+      isError: failed.length > 0 || errors.length > 0,
     };
 
   } catch (error) {

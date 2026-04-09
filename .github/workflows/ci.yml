@@ -18,5 +18,7 @@ jobs:
           elif [ -f yarn.lock ]; then yarn install --frozen-lockfile
           elif [ -f pnpm-lock.yaml ]; then corepack enable && pnpm install --frozen-lockfile
           else npm install --no-audit --no-fund; fi
+      - name: Build
+        run: npm run build
       - name: Run tests
         run: npm test

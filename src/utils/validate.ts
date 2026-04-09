@@ -3,6 +3,8 @@
  * Replaces unsafe TypeScript `as` casts with actual runtime checks.
  */
 
+import { validateSafeSoqlFragment } from "./sanitize.js";
+
 export function assertString(value: unknown, name: string): string {
   if (typeof value !== 'string') {
     throw new Error(`${name} must be a string, got ${typeof value}`);
@@ -175,8 +177,16 @@ export function assertSearchAllObjectSpecs(
     return {
       name: assertString(o.name, `${name}[${i}].name`),
       fields: assertStringArray(o.fields, `${name}[${i}].fields`),
-      where: assertOptionalString(o.where, `${name}[${i}].where`),
-      orderBy: assertOptionalString(o.orderBy, `${name}[${i}].orderBy`),
+      where: (() => {
+        const w = assertOptionalString(o.where, `${name}[${i}].where`);
+        if (w) { const v = validateSafeSoqlFragment(w); if (!v.valid) throw new Error(`Invalid ${name}[${i}].where: ${v.error}`); }
+        return w;
+      })(),
+      orderBy: (() => {
+        const ob = assertOptionalString(o.orderBy, `${name}[${i}].orderBy`);
+        if (ob) { const v = validateSafeSoqlFragment(ob); if (!v.valid) throw new Error(`Invalid ${name}[${i}].orderBy: ${v.error}`); }
+        return ob;
+      })(),
       limit: assertOptionalNumber(o.limit, `${name}[${i}].limit`),
     };
   });

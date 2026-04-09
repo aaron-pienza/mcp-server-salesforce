@@ -6,16 +6,16 @@
   "description": "Integrate Claude with Salesforce for natural language interactions with your Salesforce data and metadata",
   "long_description": "A comprehensive MCP server that enables Claude to query, modify, and manage your Salesforce objects and records using everyday language. Features include object and field management, smart object search, data queries with relationship support, Apex code management, debug log management, and field-level security controls.",
   "author": {
-    "name": "TSMZ Tech",
-    "url": "https://github.com/tsmztech"
+    "name": "Aaron Pienza",
+    "url": "https://github.com/aaron-pienza"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tsmztech/mcp-server-salesforce"
+    "url": "https://github.com/aaron-pienza/mcp-server-salesforce"
   },
-  "homepage": "https://github.com/tsmztech/mcp-server-salesforce",
-  "documentation": "https://github.com/tsmztech/mcp-server-salesforce#readme",
-  "support": "https://github.com/tsmztech/mcp-server-salesforce/issues",
+  "homepage": "https://github.com/aaron-pienza/mcp-server-salesforce",
+  "documentation": "https://github.com/aaron-pienza/mcp-server-salesforce#readme",
+  "support": "https://github.com/aaron-pienza/mcp-server-salesforce/issues",
   "keywords": ["salesforce", "crm", "data", "api", "automation", "business", "mcp"],
   "license": "MIT",
   "server": {
@@ -23,7 +23,7 @@
     "entry_point": "npx",
     "mcp_config": {
       "command": "npx",
-      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
+      "args": ["-y", "@aaron-pienza/mcp-server-salesforce"],
       "env": {
         "SALESFORCE_CONNECTION_TYPE": "${user_config.connection_type}",
         "SALESFORCE_USERNAME": "${user_config.username}",
@@ -95,6 +95,26 @@
     {
       "name": "salesforce_manage_debug_logs",
       "description": "Enable, disable, or retrieve debug logs for Salesforce users with configurable log levels"
+    },
+    {
+      "name": "salesforce_list_analytics",
+      "description": "List or search available Salesforce reports and dashboards by name"
+    },
+    {
+      "name": "salesforce_describe_analytics",
+      "description": "Get detailed metadata for a Salesforce report or dashboard including columns, filters, and components"
+    },
+    {
+      "name": "salesforce_run_analytics",
+      "description": "Execute a Salesforce report with optional filter overrides or retrieve current dashboard component data"
+    },
+    {
+      "name": "salesforce_refresh_dashboard",
+      "description": "Trigger a Salesforce dashboard refresh or check its refresh status"
+    },
+    {
+      "name": "salesforce_rest_api",
+      "description": "Make direct REST API calls to any Salesforce REST endpoint with support for all HTTP methods"
     }
   ],
   "prompts": [

@@ -66,7 +66,7 @@ export async function handleListAnalytics(conn: any, args: ListAnalyticsArgs) {
 async function listReports(conn: any, searchTerm?: string) {
   if (searchTerm) {
     // SOQL search for broader results
-    const escapedTerm = escapeSoqlValue(searchTerm);
+    const escapedTerm = escapeSoqlValue(searchTerm).replace(/%/g, '\\%').replace(/_/g, '\\_');
     const soql = `SELECT Id, Name, FolderName, Format, Description FROM Report WHERE Name LIKE '%${escapedTerm}%' ORDER BY Name LIMIT 100`;
     const result = await conn.query(soql);
 
@@ -122,7 +122,7 @@ async function listReports(conn: any, searchTerm?: string) {
 async function listDashboards(conn: any, searchTerm?: string) {
   if (searchTerm) {
     // SOQL search for broader results
-    const escapedTerm = escapeSoqlValue(searchTerm);
+    const escapedTerm = escapeSoqlValue(searchTerm).replace(/%/g, '\\%').replace(/_/g, '\\_');
     const soql = `SELECT Id, Title, FolderName, Description FROM Dashboard WHERE Title LIKE '%${escapedTerm}%' ORDER BY Title LIMIT 100`;
     const result = await conn.query(soql);
 

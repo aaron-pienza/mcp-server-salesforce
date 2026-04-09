@@ -321,10 +321,13 @@ export async function handleManageField(conn: any, args: ManageFieldArgs) {
         // Grant Field Level Security (default to System Administrator if not specified)
         const profilesToGrant = grantAccessTo && grantAccessTo.length > 0 ? grantAccessTo : ['System Administrator'];
         
-        // Wait a moment for field to be fully created
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const permissionResult = await grantFieldPermissions(conn, objectName, fieldName, profilesToGrant);
+        // Retry FLS grant with backoff — field may not be immediately available after creation
+        let permissionResult = { success: false, message: 'FLS grant not attempted' };
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); // 1s, 2s, 4s
+          permissionResult = await grantFieldPermissions(conn, objectName, fieldName, profilesToGrant);
+          if (permissionResult.success) break;
+        }
         permissionMessage = `\n${permissionResult.message}`;
         
         return {
@@ -332,7 +335,7 @@ export async function handleManageField(conn: any, args: ManageFieldArgs) {
             type: "text",
             text: `Successfully created custom field ${fieldName}__c on ${objectName}.${permissionMessage}`
           }],
-          isError: false,
+          isError: !permissionResult.success,
         };
       }
     } else {

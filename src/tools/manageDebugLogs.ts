@@ -130,7 +130,8 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
     
     // Determine if the input is likely a username or a full name
     const isLikelyUsername = args.username.includes('@') || !args.username.includes(' ');
-    
+    const escapedUsername = escapeSoqlValue(args.username).replace(/%/g, '\\%').replace(/_/g, '\\_');
+
     // Build the query based on whether the input looks like a username or a full name
     let userQuery;
     if (isLikelyUsername) {
@@ -145,7 +146,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
       userQuery = await conn.query(`
         SELECT Id, Username, Name, IsActive
         FROM User
-        WHERE Name LIKE '%${escapeSoqlValue(args.username)}%'
+        WHERE Name LIKE '%${escapedUsername}%'
         ORDER BY LastModifiedDate DESC
         LIMIT 5
       `);
@@ -156,8 +157,8 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
       userQuery = await conn.query(`
         SELECT Id, Username, Name, IsActive
         FROM User
-        WHERE Name LIKE '%${escapeSoqlValue(args.username)}%'
-        OR Username LIKE '%${escapeSoqlValue(args.username)}%'
+        WHERE Name LIKE '%${escapedUsername}%'
+        OR Username LIKE '%${escapedUsername}%'
         ORDER BY LastModifiedDate DESC
         LIMIT 5
       `);
@@ -221,9 +222,9 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
         const existingTraceFlag = await conn.tooling.query(`
           SELECT Id, DebugLevelId FROM TraceFlag
           WHERE TracedEntityId = '${escapeSoqlValue(user.Id)}'
-          AND ExpirationDate > ${new Date().toISOString()}
+          AND ExpirationDate > ${new Date().toISOString().replace('Z', '+0000')}
         `);
-        
+
         let traceFlagId;
         let debugLevelId;
         let operation;
@@ -291,7 +292,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
       case 'disable': {
         // Find all active trace flags for this user
         const traceFlags = await conn.tooling.query(`
-          SELECT Id FROM TraceFlag WHERE TracedEntityId = '${escapeSoqlValue(user.Id)}' AND ExpirationDate > ${new Date().toISOString()}
+          SELECT Id FROM TraceFlag WHERE TracedEntityId = '${escapeSoqlValue(user.Id)}' AND ExpirationDate > ${new Date().toISOString().replace('Z', '+0000')}
         `);
         
         if (traceFlags.records.length === 0) {
@@ -384,7 +385,7 @@ export async function handleManageDebugLogs(conn: any, args: ManageDebugLogsArgs
                 // Retrieve the log body
                 const logBody = await conn.tooling.request({
                   method: 'GET',
-                  url: `${conn.instanceUrl}/services/data/v58.0/tooling/sobjects/ApexLog/${log.Id}/Body`
+                  url: `${conn.instanceUrl}/services/data/v${conn.version || '62.0'}/tooling/sobjects/ApexLog/${log.Id}/Body`
                 });
                 
                 let responseText = `**Log Details:**\n\n`;

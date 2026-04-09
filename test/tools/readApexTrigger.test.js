@@ -20,7 +20,7 @@ test('readApexTrigger — read specific trigger returns body', async () => {
     }),
   });
   const result = await handleReadApexTrigger(conn, { triggerName: 'AccountTrigger' });
-  assert.equal(result.isError, undefined);
+  assert.ok(result.isError !== true);
   assert.ok(result.content[0].text.includes('trigger AccountTrigger'));
 });
 

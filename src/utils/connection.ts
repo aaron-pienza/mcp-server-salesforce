@@ -73,12 +73,41 @@ export async function getSalesforceOrgInfo(
   }
 }
 
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let cachedConnection: { conn: Connection; expiry: number; configKey: string } | null = null;
+
+function getConfigKey(config?: ConnectionConfig): string {
+  const type = config?.type || process.env.SALESFORCE_CONNECTION_TYPE || 'User_Password';
+  const url = config?.loginUrl || process.env.SALESFORCE_INSTANCE_URL || '';
+  return `${type}:${url}`;
+}
+
+export function clearConnectionCache(): void {
+  cachedConnection = null;
+}
+
 /**
  * Creates a Salesforce connection using either username/password or OAuth 2.0 Client Credentials Flow
+ * Returns a cached connection if one exists and hasn't expired.
  * @param config Optional connection configuration
  * @returns Connected jsforce Connection instance
  */
 export async function createSalesforceConnection(config?: ConnectionConfig): Promise<Connection> {
+  const key = getConfigKey(config);
+  if (cachedConnection && cachedConnection.configKey === key && Date.now() < cachedConnection.expiry) {
+    return cachedConnection.conn;
+  }
+  const conn = await createFreshConnection(config);
+  cachedConnection = { conn, expiry: Date.now() + CACHE_TTL, configKey: key };
+  return conn;
+}
+
+/**
+ * Creates a fresh Salesforce connection (no caching).
+ * @param config Optional connection configuration
+ * @returns Connected jsforce Connection instance
+ */
+async function createFreshConnection(config?: ConnectionConfig): Promise<Connection> {
   const connectionType = config?.type ||
     (process.env.SALESFORCE_CONNECTION_TYPE as ConnectionType) ||
     ConnectionType.User_Password;
