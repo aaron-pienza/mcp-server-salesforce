@@ -146,6 +146,35 @@ Manage debug logs for Salesforce users:
 * Configure log levels (NONE, ERROR, WARN, INFO, DEBUG, FINE, FINER, FINEST)
 * Example: "Enable debug logs for user@example.com" or "Retrieve recent logs for an admin user"
 
+### salesforce_list_analytics
+List available reports and dashboards:
+* Search reports or dashboards by name
+* Returns IDs, names, folders, and metadata
+* Use this to find IDs before describing or running analytics
+* Example: "List all reports matching 'Pipeline'" or "Find dashboards about Executive metrics"
+
+### salesforce_describe_analytics
+Get detailed metadata for a report or dashboard:
+* Reports: columns, groupings, filters, aggregates, date filter, and available filter operators
+* Dashboards: component list with headers, visualization types, associated report IDs, and layout
+* Use this to understand structure before running with filter overrides
+* Example: "Describe the Pipeline report" or "Show me the components of the Executive dashboard"
+
+### salesforce_run_analytics
+Execute reports or retrieve dashboard component data:
+* Run reports with optional runtime filter overrides, date filters, and detail rows
+* Retrieve current dashboard component data (aggregates and summaries) without refresh
+* Supports boolean filter logic (e.g., "1 AND (2 OR 3)")
+* Detail rows capped at 2,000 by the Salesforce sync API
+* Example: "Run the Pipeline report for Closed Won deals" or "Get the Executive dashboard data"
+
+### salesforce_refresh_dashboard
+Refresh a dashboard or check refresh status:
+* Trigger an asynchronous dashboard refresh
+* Check per-component refresh status and data freshness
+* Use `salesforce_run_analytics` after refresh completes to retrieve updated data
+* Example: "Refresh the Executive dashboard" or "Check if the dashboard refresh is done"
+
 ### salesforce_rest_api
 Make direct REST API calls to any Salesforce REST endpoint:
 * Access any Salesforce REST API endpoint not covered by other tools
@@ -336,6 +365,16 @@ Examples with Field Level Security:
 "Retrieve recent logs for an admin user"
 "Disable debug logs for a specific user"
 "Configure log level to DEBUG for a user"
+```
+
+### Reports & Dashboards
+```
+"List all reports matching 'Pipeline'"
+"Describe the quarterly revenue report"
+"Run the Pipeline report filtered to Closed Won"
+"Run the sales report for last 90 days"
+"Refresh the Executive dashboard"
+"Get the latest data from the KPI dashboard"
 ```
 
 ### REST API Calls

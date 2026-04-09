@@ -153,27 +153,21 @@ If the MCP server is working, Claude will query Salesforce and return the schema
 
 ### Step 7: Point Claude to the Salesforce Guide
 
-This repository contains a reference guide (`SALESFORCE_GUIDE.md`) that teaches Claude how to use the Salesforce MCP tools effectively — which tool to use for each task, known limitations, and workarounds. Without it, Claude may take inconsistent or broken approaches.
+The MCP server ships a built-in reference guide as an MCP resource (`salesforce://guide`). This guide teaches Claude which tool to use for each task, all parameter details, known limitations, and workarounds. Without it, Claude may take inconsistent or broken approaches.
 
-Add this line to your **global** `~/.claude/CLAUDE.md`, replacing the path with the actual location of this repository on your machine:
-
-```
-When using Salesforce MCP tools, read /path/to/sfdc-mcp/SALESFORCE_GUIDE.md first.
-```
-
-For example, if you cloned this repo to `~/repos/sfdc-mcp`:
+Add this line to your **global** `~/.claude/CLAUDE.md`:
 
 ```
-When using Salesforce MCP tools, read ~/repos/sfdc-mcp/SALESFORCE_GUIDE.md first.
+When using Salesforce MCP tools, read the salesforce://guide MCP resource first.
 ```
 
 If `~/.claude/CLAUDE.md` doesn't exist yet, create it:
 
 ```bash
-echo 'When using Salesforce MCP tools, read ~/repos/sfdc-mcp/SALESFORCE_GUIDE.md first.' >> ~/.claude/CLAUDE.md
+echo 'When using Salesforce MCP tools, read the salesforce://guide MCP resource first.' >> ~/.claude/CLAUDE.md
 ```
 
-The global `CLAUDE.md` is loaded into every Claude Code session regardless of which directory you're working in. The guide itself stays up to date when you `git pull` this repository.
+The global `CLAUDE.md` is loaded into every Claude Code session regardless of which directory you're working in. The guide is bundled with the MCP server package, so it automatically stays in sync with the tools.
 
 ## What You Can Do
 
