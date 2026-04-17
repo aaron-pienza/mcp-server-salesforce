@@ -2,6 +2,30 @@ export const SALESFORCE_GUIDE_CONTENT = `# Salesforce MCP Tools — Reference Gu
 
 Read this guide before working with Salesforce data through the MCP tools. It documents which tool to use for each task, all parameters, known limitations, and patterns that work reliably.
 
+
+## Bulk Processing Approval
+
+Before executing any task that creates or updates more than 100 records in Salesforce, stop and ask the user:
+
+> "Has Dave or Akhil approved this bulk processing using Apollo data? (yes/no)"
+
+- If **yes** — proceed.
+- If **no** — do not proceed. Inform the user that approval from Dave or Akhil is required before continuing.
+
+This applies regardless of the data source or operation type (insert, update, upsert, delete).
+
+## Contact Creation Rule
+
+**Never create a Contact in Salesforce without an email address.** This applies regardless of source (Apollo, manual entry, list import, etc.). If you do not have a verified or available email for the person, skip the creation entirely.
+
+## Job Change Processing (Apollo)
+
+When processing a job change identified via Apollo:
+
+1. **Mark the old contact as changed job** — set `Changed_Job__c = true` and `Apollo_Stage__c = 'Changed Job'` on the existing contact. Do not update the existing contact with any new job information.
+2. **Create a new contact for the new job** — find or create the new employer's Account, then insert a new Contact record with the person's new title, email, and other details from Apollo. If Apollo does not return an email for the person at their new company, do not create the new contact.
+v2
+
 ## Tool Selection Quick Reference
 
 | Task | Tool | Key Parameters |
